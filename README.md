@@ -2,6 +2,38 @@
 
 An accounts-payable agent that turns invoice emails into bookkeeping records while escalating only the invoices that actually need a human.
 
+## Python model setup and PRISM tracing
+
+The Python model factory in `src/agent.py` configures Claude Sonnet 4.6 with
+`PRISMtraceCallbackHandler` for project `091ed2f5-9be8-4f04-8ec7-1a174f59ae30`,
+under the agent name **Billify AP Agent**. The invoice-processing workflow is
+still to be implemented; this factory provides its traced model.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Set `ANTHROPIC_API_KEY` and `PRISMTRACE_API_KEY` in your shell environment.
+`.env.example` lists the required variables; `.env` files are not loaded
+automatically.
+
+Use the factory from the repository root:
+
+```python
+from src.agent import create_llm
+
+llm = create_llm()
+response = llm.invoke("Explain what information is needed to validate an invoice.")
+print(response.content)
+```
+
+Invoking the model calls Anthropic and sends model traces to PRISM. When adding
+a LangChain agent or workflow, also pass the callback through the top-level
+invocation's `config={"callbacks": llm.callbacks}` to capture workflow and tool steps;
+the model-level callback alone covers model calls.
+
 ## Problem
 
 Small finance teams spend hours every week turning invoice emails into bookkeeping records. An invoice lands in a shared inbox, someone reads it, types the vendor, amount, dates, and PO number into QuickBooks, and then should verify that the invoice matches what was ordered and has not already been paid.
