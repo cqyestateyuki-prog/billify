@@ -16,8 +16,8 @@ to select one or more files. The **Import guide & sample** link opens `/import`,
 where you can download the sample CSV and validate it. The sample produces **one passed invoice and six review
 items**. Download findings as CSV, full results as JSON, or draft reimbursement
 forms as JSON. The same live dashboard is also available at `/dashboard`.
-The validator and local server use the Python standard library and need no model
-API key. No model makes the accounting decisions.
+The validator and local server use the Python standard library; CSV review needs
+no model API key. No model makes the accounting decisions.
 
 Each row must contain `invoice_number,vendor_id,vendor_name,invoice_date,po_number,total,currency`.
 Optional columns: `due_date,subtotal,tax`. Use UTF-8 CSV, ISO dates, and ungrouped
@@ -76,6 +76,32 @@ reimport those CSVs to populate the dashboard. No real payments are made, and
 passing invoices remain drafts. The server binds to localhost and has no
 production authentication.
 
+### Invoice PDFs
+
+**Import CSVs or PDFs** (and the `/import` page) also accept **up to 20 invoice
+PDFs**, 8 MB each. Claude (`claude-opus-5-5`, override with `BILLIFY_EXTRACT_MODEL`)
+reads each PDF into the CSV columns, then the same deterministic checks run and the
+invoice is saved as its own import named after the PDF. Claude only reads; it never
+decides. Values it cannot read for certain, such as `03/04/26`, are left empty and
+explained, so the invoice goes to review instead of being guessed; the dashboard
+shows these notes and the values as written under **Read from PDF**. The vendor ID
+comes from the approved name or alias, or else from the PO, so a look-alike name is
+still reported as `VENDOR_NAME_MISMATCH`. Requests opt into server-side fallback
+(`fallbacks: "default"`), so a safety decline is retried on Anthropic's recommended
+model.
+
+```bash
+pip install -r requirements.txt
+export ANTHROPIC_API_KEY='your-anthropic-key'
+python -m src.server
+```
+
+Sample PDFs made from `data/invoices.csv` are in `data/sample_pdfs/`; regenerate
+them with `python scripts/make_sample_pdfs.py`. `POST /api/import-pdf` takes
+`{"files": [{"name": "INV-001.pdf", "data": "<base64>"}]}` and returns the saved
+`imports`, their `results` (each with `pdf_read`), and any `skipped` files. Without
+credentials it answers 503 and saves nothing.
+
 ### PRISM traces
 
 Install `requirements.txt` and export these variables before starting the server:
@@ -90,7 +116,8 @@ python -m src.server
 No `.env` loader is used: export variables into your shell. Every invoice has its
 own session and a root workflow with seven real tool spans: load invoice,
 normalize fields, look up vendor, look up PO, search existing bills, validate
-amounts, and save decision. SDK callbacks are emitted directly by the deterministic
+amounts, and save decision. A PDF invoice adds a `read_invoice_pdf` run with one
+`extract_invoice_fields` tool span to the same session. SDK callbacks are emitted directly by the deterministic
 workflow; these are workflow traces, not claimed LLM calls. Findings and normalized
 invoice fields are included in trace outputs. Use fictional data for the demo.
 The SDK flushes at each invoice's root-chain completion, so delivery can add
@@ -109,7 +136,8 @@ node --test tests/test_dashboard.cjs
 ```
 
 Tests cover financial controls, batch duplicates and balances, mixed valid/invalid
-rows, formula-safe CSV export, HTTP upload, and (when the SDK is installed) real
+rows, formula-safe CSV export, HTTP upload, PDF reading with a stand-in for Claude (request shape, refusals,
+missing credentials, vendor matching, saved PDF imports), and (when the SDK is installed) real
 PRISM span serialization against a mocked transport. Live PRISM delivery requires
 your project credentials.
 

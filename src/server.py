@@ -10,11 +10,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from src.extract import ExtractionError, decode_pdfs, read_pdfs
 from src.invoices import results_csv
 from src.store import InvoiceStore
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_BODY = 2_000_000
+MAX_PDF_BODY = 24_000_000  # base64 PDFs; Claude accepts up to 32 MB per request
 
 
 class InvoiceHandler(BaseHTTPRequestHandler):
@@ -59,8 +61,8 @@ class InvoiceHandler(BaseHTTPRequestHandler):
         self.respond(200, (ROOT / filename).read_bytes(), content_type)
 
     def do_POST(self) -> None:
-        """Validate uploaded CSV using server-owned reference data."""
-        if self.path != '/api/import':
+        """Validate uploaded CSV or invoice PDFs using server-owned reference data."""
+        if self.path not in ('/api/import', '/api/import-pdf'):
             self.respond(404, b'Not found', 'text/plain')
             return
         origin = self.headers.get('Origin')
@@ -69,30 +71,50 @@ class InvoiceHandler(BaseHTTPRequestHandler):
             return
         try:
             size = int(self.headers.get('Content-Length', '0'))
-            if size <= 0 or size > MAX_BODY:
-                raise ValueError('Upload must be between 1 byte and 2 MB.')
+            limit = MAX_PDF_BODY if self.path == '/api/import-pdf' else MAX_BODY
+            if size <= 0 or size > limit:
+                raise ValueError(f'Upload must be between 1 byte and {limit // 1_000_000} MB.')
             if self.headers.get_content_type() != 'application/json':
                 raise ValueError('Expected application/json.')
             payload = json.loads(self.rfile.read(size))
-            if not isinstance(payload, dict) or not isinstance(payload.get('csv'), str):
-                raise ValueError('Provide a csv string.')
             reference_path = Path(os.environ.get('BILLIFY_REFERENCE_PATH', str(ROOT / 'data/reference.json')))
             reference = json.loads(reference_path.read_text(encoding='utf-8'))
-            filename = payload.get('filename', 'uploaded.csv')
-            if not isinstance(filename, str) or not filename.strip() or len(filename) > 255:
-                raise ValueError('Filename must be a nonempty string of at most 255 characters.')
-            batch = self.store().ingest(payload['csv'], filename, reference, self.trace_handler)
+            if self.path == '/api/import-pdf':
+                batch = self.import_pdfs(payload, reference)
+            else:
+                if not isinstance(payload, dict) or not isinstance(payload.get('csv'), str):
+                    raise ValueError('Provide a csv string.')
+                filename = payload.get('filename', 'uploaded.csv')
+                if not isinstance(filename, str) or not filename.strip() or len(filename) > 255:
+                    raise ValueError('Filename must be a nonempty string of at most 255 characters.')
+                batch = self.store().ingest(payload['csv'], filename, reference, self.trace_handler)
             results = batch['results']
             body = {**batch, 'csv': results_csv(results),
                     'drafts': [r['reimbursement'] for r in results if r['reimbursement']],
                     'tracing_enabled': self.trace_handler is not None,
                     'reference_mode': 'configured' if os.environ.get('BILLIFY_REFERENCE_PATH') else 'demo'}
             self.respond(200, json.dumps(body).encode(), 'application/json')
+        except ExtractionError as exc:
+            self.respond(exc.status, json.dumps({'error': str(exc)}).encode(), 'application/json')
         except (ValueError, UnicodeError, csv.Error) as exc:
             self.respond(400, json.dumps({'error': str(exc)}).encode(), 'application/json')
         except Exception:
             logging.exception('Invoice import failed')
             self.respond(500, b'{"error":"Import failed. See server logs for the underlying error."}', 'application/json')
+
+
+    def import_pdfs(self, payload: Any, reference: dict[str, Any]) -> dict[str, Any]:
+        """Read PDFs with Claude, then save each invoice as its own import named after its file."""
+        invoices, skipped = read_pdfs(decode_pdfs(payload), reference, self.trace_handler)
+        if not invoices:
+            raise ValueError('No invoices could be read: ' + '; '.join(s['reason'] for s in skipped))
+        store, imports, results = self.store(), [], []
+        for invoice in invoices:
+            saved = store.ingest(invoice['csv'], invoice['file'], reference, self.trace_handler,
+                                 [invoice['session_id']], [{'pdf_read': invoice['pdf_read']}])
+            imports.append({k: saved[k] for k in ('import_id', 'filename', 'created_at')})
+            results.extend(saved['results'])
+        return {'imports': imports, 'results': results, 'skipped': skipped}
 
 
 def main() -> None:

@@ -46,8 +46,13 @@ class InvoiceStore:
         finally:
             connection.close()
 
-    def ingest(self, content: str, filename: str, reference: dict[str, Any], handler: Any = None) -> dict[str, Any]:
-        """Validate and save one CSV as a transaction against the reference snapshot."""
+    def ingest(self, content: str, filename: str, reference: dict[str, Any], handler: Any = None,
+               session_ids: list[str] | None = None, extras: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Validate and save one CSV as a transaction against the reference snapshot.
+
+        session_ids continue PRISM sessions opened earlier (PDF reading); extras are merged
+        into each row's saved result (e.g. what was read from the PDF).
+        """
         reference_hash = hashlib.sha256(json.dumps(reference, sort_keys=True).encode()).hexdigest()
         adjusted = json.loads(json.dumps(reference))
         with self.connect() as connection:
@@ -65,7 +70,9 @@ class InvoiceStore:
                 reserved[po] = reserved.get(po, Decimal('0')) + Decimal(invoice['total'])
             for po in adjusted['purchase_orders']:
                 po['remaining_amount'] = str(max(Decimal('0'), Decimal(str(po['remaining_amount'])) - reserved.get(po['number'], Decimal('0'))))
-            results = process_csv(content, adjusted, handler)
+            results = process_csv(content, adjusted, handler, session_ids)
+            for result, extra in zip(results, extras or []):
+                result.update(extra)
             import_id = str(uuid4())
             created_at = datetime.now(timezone.utc).isoformat()
             connection.execute('INSERT INTO imports VALUES (?, ?, ?, ?)', (import_id, filename, created_at, reference_hash))
