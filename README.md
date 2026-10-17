@@ -2,12 +2,93 @@
 
 An accounts-payable agent that turns invoice emails into bookkeeping records while escalating only the invoices that actually need a human.
 
+
+## CSV invoice review (working feature)
+
+From the repository root, run:
+
+```bash
+python -m src.server
+```
+
+Open **http://127.0.0.1:8000**. Download the sample CSV, upload it, and select
+**Validate invoices**. The sample produces **one passed invoice and six review
+items**. Download findings as CSV, full results as JSON, or draft reimbursement
+forms as JSON. The existing prototype dashboard is available at `/dashboard`.
+The validator and local server use the Python standard library and need no model
+API key. No model makes the accounting decisions.
+
+Each row must contain `invoice_number,vendor_id,vendor_name,invoice_date,po_number,total,currency`.
+Optional columns: `due_date,subtotal,tax`. Use UTF-8 CSV, ISO dates, and ungrouped
+nonnegative decimal amounts with at most two decimal places. Currency must match
+the referenced PO. Ambiguous locales are flagged rather than guessed. Arithmetic
+is checked when subtotal, tax, and total are all supplied. This version does not
+support line-item CSVs, credit notes, or currencies requiring more than two decimals.
+Invalid field values produce row-level findings; malformed CSV structure rejects
+the import with a clear error. Money in JSON is serialized as decimal strings.
+
+`data/reference.json` contains **fictional demo** vendors, POs, and existing bills.
+To use your own trusted reference records, configure their server-side path:
+
+```bash
+export BILLIFY_REFERENCE_PATH=/absolute/path/to/reference.json
+python -m src.server
+```
+
+Use the same JSON shape as the demo. `remaining_amount` must already account for
+historical bills. Within an import, passing invoices reserve the remaining PO
+balance; every instance of an in-batch duplicate is flagged. Approved aliases are
+explicitly listed under each vendor; fuzzy names never establish approval.
+
+**Demo storage boundary:** imports and drafts are not persisted. Separate imports
+are evaluated against the configured reference snapshot again. Download results
+before leaving; update reference records externally before treating a later import
+as new bookkeeping work. A passed invoice creates only a `draft`, never an approved
+form, accounting entry, or payment. The server binds to localhost and has no
+production authentication or durable ledger.
+
+### PRISM traces
+
+Install `requirements.txt` and export these variables before starting the server:
+
+```bash
+export PRISMTRACE_API_KEY='your-prism-key'
+export PRISMTRACE_PROJECT_ID='091ed2f5-9be8-4f04-8ec7-1a174f59ae30'
+export PRISMTRACE_HOST='https://prism.blockconvey.com'
+python -m src.server
+```
+
+No `.env` loader is used: export variables into your shell. Every invoice has its
+own session and a root workflow with seven real tool spans: load invoice,
+normalize fields, look up vendor, look up PO, search existing bills, validate
+amounts, and save decision. SDK callbacks are emitted directly by the deterministic
+workflow; these are workflow traces, not claimed LLM calls. Findings and normalized
+invoice fields are included in trace outputs. Use fictional data for the demo.
+The SDK flushes at each invoice's root-chain completion, so delivery can add
+latency. The UI reports whether tracing is configured, not whether remote delivery
+succeeded; check the server logs and PRISM Steps to verify receipt.
+
+Correctly flagging a bad invoice is a successful validation run. Execution
+exceptions are traced as failures. This feature does not fabricate failed runs,
+configure remote alerts, or automatically spend root-cause analysis credits.
+
+### Verification
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Tests cover financial controls, batch duplicates and balances, mixed valid/invalid
+rows, formula-safe CSV export, HTTP upload, and (when the SDK is installed) real
+PRISM span serialization against a mocked transport. Live PRISM delivery requires
+your project credentials.
+
 ## Python model setup and PRISM tracing
 
 The Python model factory in `src/agent.py` configures Claude Sonnet 4.6 with
 `PRISMtraceCallbackHandler` for project `091ed2f5-9be8-4f04-8ec7-1a174f59ae30`,
-under the agent name **Billify AP Agent**. The invoice-processing workflow is
-still to be implemented; this factory provides its traced model.
+under the agent name **Billify AP Agent**. The CSV validation workflow below runs independently of the model factory.
+The factory remains available for future model-assisted explanations.
 
 ```bash
 python3 -m venv .venv

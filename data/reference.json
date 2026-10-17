@@ -1,0 +1,11 @@
+{
+  "vendors": [
+    {"id": "V001", "name": "Acme Supplies", "aliases": ["Acme Supplies LLC"]},
+    {"id": "V002", "name": "Lab Equipment Co", "aliases": []}
+  ],
+  "purchase_orders": [
+    {"number": "PO-100", "vendor_id": "V001", "currency": "USD", "remaining_amount": "1000.00"},
+    {"number": "PO-200", "vendor_id": "V002", "currency": "USD", "remaining_amount": "5000.00"}
+  ],
+  "existing_bills": [{"vendor_id": "V001", "invoice_number": "INV-PAID"}]
+}
