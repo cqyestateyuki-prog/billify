@@ -281,12 +281,12 @@ def note(field: str, written: str, sent: str, why: str = '') -> dict[str, str]:
 
 # ---------- the run ----------
 
-def traced(handler: Any, session_id: str, name: str) -> tuple[Any, WorkflowTrace]:
+def traced(handler: Any, session_id: str, name: str, inputs: Any = None) -> tuple[Any, WorkflowTrace]:
     """A PRISM session context and a root run for one invoice."""
     if handler:
         from prismtrace import session
-        return session(session_id), WorkflowTrace(handler, name)
-    return nullcontext(), WorkflowTrace(None, name)
+        return session(session_id), WorkflowTrace(handler, name, inputs)
+    return nullcontext(), WorkflowTrace(None, name, inputs)
 
 
 def decode_files(payload: Any) -> tuple[str, str, list[dict[str, Any]]]:
@@ -584,13 +584,14 @@ def transfer_items(payload: Any, portal: Portal, handler: Any = None) -> dict[st
     results = []
     for item in items:
         result = {'id': item['id'], 'name': item['name'], 'fields': item['fields'], 'steps': []}
-        context, trace = traced(handler, item['id'], 'transfer_invoice')
+        context, trace = traced(handler, item['id'], 'transfer_invoice',
+                                {'invoice': item['name'], 'agent': version, 'report': report_id, 'values_sent': item['fields']})
 
         def submit() -> dict[str, Any]:
             """Post the claim; anything but 201 raises so the trace records a failed call."""
             status, body = portal.submit(report_id, item['fields'])
             if status != 201:
-                raise PortalRejected(status, body)
+                raise PortalRejected(status, body, item['fields'])
             return body
 
         try:
@@ -598,14 +599,15 @@ def transfer_items(payload: Any, portal: Portal, handler: Any = None) -> dict[st
                 trace.step('fill_portal_form', lambda: dict(item['fields']))
                 result['steps'].append({'run': 'transfer_invoice', 'name': 'fill_portal_form', 'status': 'ok',
                                         'output': f'{len(FIELDS)} fields filled on report {report_id} (agent {version})'})
-                expense = trace.step('submit_expense', submit)
+                expense = trace.step('submit_expense', submit, item['fields'])
+                trace.output = {'http': 201, 'expense_id': expense['id'], 'status': 'pending approval'}
             result.update(status='created', http=201, expense=expense, errors=[])
             result['steps'].append({'run': 'transfer_invoice', 'name': 'submit_expense', 'status': 'ok',
                                     'output': f"201 · {expense['id']} · pending approval"})
         except PortalRejected as exc:
             result.update(status='rejected', http=exc.status, expense=None, errors=exc.body.get('errors', []))
             result['steps'].append({'run': 'transfer_invoice', 'name': 'submit_expense', 'status': 'error',
-                                    'output': str(exc)})
+                                    'output': exc.summary})
         portal.record_run(item['id'], report_id, item['name'], version, result['status'],
                           [e['code'] for e in result['errors']])
         results.append(result)

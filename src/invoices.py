@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass, field
@@ -37,16 +38,18 @@ class InvoiceResult:
 
 class WorkflowTrace:
     """Emit actual validation tool spans to an optional PRISM callback handler."""
-    def __init__(self, handler: Any = None, name: str = 'validate_invoice') -> None:
-        """Retain a shared callback handler for all invoices in an import."""
+    def __init__(self, handler: Any = None, name: str = 'validate_invoice', inputs: Any = None) -> None:
+        """Retain a shared callback handler for all invoices in an import, and what this run was given."""
         self.handler = handler
         self.name = name
+        self.inputs = inputs or {}
+        self.output: Any = {'completed': True}
         self.run_id = uuid4()
 
     def __enter__(self) -> WorkflowTrace:
         """Open one root run so all seven tool steps share a trajectory."""
         if self.handler:
-            self.handler.on_chain_start({'name': self.name}, {}, run_id=self.run_id)
+            self.handler.on_chain_start({'name': self.name}, self.inputs, run_id=self.run_id)
         return self
 
     def __exit__(self, kind: type[BaseException] | None, error: BaseException | None,
@@ -56,13 +59,14 @@ class WorkflowTrace:
             if error:
                 self.handler.on_chain_error(error, run_id=self.run_id)
             else:
-                self.handler.on_chain_end({'completed': True}, run_id=self.run_id)
+                self.handler.on_chain_end(self.output, run_id=self.run_id)
 
-    def step(self, name: str, operation: Callable[[], Any]) -> Any:
+    def step(self, name: str, operation: Callable[[], Any], tool_input: Any = None) -> Any:
         """Execute a step and preserve exceptions in the trace and caller."""
         run_id = uuid4()
         if self.handler:
-            self.handler.on_tool_start({'name': name, 'description': name}, '{}', run_id=run_id, parent_run_id=self.run_id)
+            given = '{}' if tool_input is None else json.dumps(tool_input, default=str)
+            self.handler.on_tool_start({'name': name, 'description': name}, given, run_id=run_id, parent_run_id=self.run_id)
         try:
             result = operation()
         except Exception as exc:

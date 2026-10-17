@@ -84,13 +84,21 @@ def validate(claim: dict[str, Any], today: date | None = None) -> list[dict[str,
 
 class PortalRejected(Exception):
     """The portal refused a submission; raised inside the traced step so PRISM records a failed call."""
-    def __init__(self, status: int, body: dict[str, Any]) -> None:
-        """Keep the HTTP status and response body the portal returned."""
-        codes = [e['code'] for e in body.get('errors', [])] or [body.get('error', 'REJECTED')]
-        super().__init__(f'{status} ' + ', '.join(codes))
+    def __init__(self, status: int, body: dict[str, Any], claim: dict[str, Any] | None = None) -> None:
+        """Keep the HTTP status and response body; the message names each field, the value sent and the reason."""
+        errors = body.get('errors', [])
+        codes = [e['code'] for e in errors] or [body.get('error', 'REJECTED')]
+        sent = claim or {}
+        reasons = [f"{e['field']} {sent.get(e['field'], '')!r}: {e['code']}, {e['message']}" for e in errors]
+        super().__init__(f'Acme Expense returned {status}. ' + ('; '.join(reasons) or ', '.join(codes)))
         self.status = status
         self.body = body
         self.codes = codes
+
+    @property
+    def summary(self) -> str:
+        """The short form for the steps drawer: status and error codes."""
+        return f'{self.status} ' + ', '.join(self.codes)
 
 
 class Portal:

@@ -251,6 +251,11 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(runs['read_invoice'][1]), 8)
         self.assertEqual(len(runs['validate_invoice'][1]), 7)
         self.assertEqual(runs['transfer_invoice'], ('error', {'fill_portal_form': 'ok', 'submit_expense': 'error'}))
+        spans = {s['name']: s for p in payloads for s in p['spans']}
+        sent = json.loads(spans['transfer_invoice']['input_text'])
+        self.assertEqual((sent['invoice'], sent['agent'], sent['values_sent']), (item['name'], 'v1', item['fields']))
+        self.assertEqual(json.loads(spans['submit_expense']['input_text']), item['fields'])
+        self.assertRegex(spans['submit_expense']['error_message'], r"^Acme Expense returned 422\. \w+ '.*': [A-Z_]+, ")
 
 
 class EndpointTests(unittest.TestCase):
