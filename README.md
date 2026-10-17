@@ -115,7 +115,8 @@ your project credentials.
 
 ## Python model setup and PRISM tracing
 
-The Python model factory in `src/agent.py` configures Claude Sonnet 4.6 with
+The Python model factory in `src/agent.py` configures GPT-6 Astra
+(`openai/gpt-6-astra` via the Nicrron OpenAI-compatible API) with
 `PRISMtraceCallbackHandler` for project `091ed2f5-9be8-4f04-8ec7-1a174f59ae30`,
 under the agent name **Billify AP Agent**. The CSV validation workflow below runs independently of the model factory.
 The factory remains available for future model-assisted explanations.
@@ -126,7 +127,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Set `ANTHROPIC_API_KEY` and `PRISMTRACE_API_KEY` in your shell environment.
+Set `NICRRON_API_KEY` and `PRISMTRACE_API_KEY` in your shell environment.
 `.env.example` lists the required variables; `.env` files are not loaded
 automatically.
 
@@ -140,7 +141,7 @@ response = llm.invoke("Explain what information is needed to validate an invoice
 print(response.content)
 ```
 
-Invoking the model calls Anthropic and sends model traces to PRISM. When adding
+Invoking the model calls the Nicrron API and sends model traces to PRISM. When adding
 a LangChain agent or workflow, also pass the callback through the top-level
 invocation's `config={"callbacks": llm.callbacks}` to capture workflow and tool steps;
 the model-level callback alone covers model calls.
