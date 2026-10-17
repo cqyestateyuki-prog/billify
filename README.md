@@ -11,10 +11,11 @@ From the repository root, run:
 python -m src.server
 ```
 
-Open **http://127.0.0.1:8000**. Download the sample CSV, upload it, and select
-**Validate invoices**. The sample produces **one passed invoice and six review
+Open **http://127.0.0.1:8000** for the live invoice dashboard. Use **Import CSVs**
+to select one or more files. The **Import guide & sample** link opens `/import`,
+where you can download the sample CSV and validate it. The sample produces **one passed invoice and six review
 items**. Download findings as CSV, full results as JSON, or draft reimbursement
-forms as JSON. The existing prototype dashboard is available at `/dashboard`.
+forms as JSON. The same live dashboard is also available at `/dashboard`.
 The validator and local server use the Python standard library and need no model
 API key. No model makes the accounting decisions.
 
@@ -36,16 +37,44 @@ python -m src.server
 ```
 
 Use the same JSON shape as the demo. `remaining_amount` must already account for
-historical bills. Within an import, passing invoices reserve the remaining PO
+historical bills. Across imports using the same reference snapshot, passing invoices reserve the remaining PO
 balance; every instance of an in-batch duplicate is flagged. Approved aliases are
 explicitly listed under each vendor; fuzzy names never establish approval.
 
-**Demo storage boundary:** imports and drafts are not persisted. Separate imports
-are evaluated against the configured reference snapshot again. Download results
-before leaving; update reference records externally before treating a later import
-as new bookkeeping work. A passed invoice creates only a `draft`, never an approved
-form, accounting entry, or payment. The server binds to localhost and has no
-production authentication or durable ledger.
+### Live dashboard and saved imports
+
+The dashboard reads `GET /api/documents`; it contains no mock invoice records.
+Each document is one invoice row, linked to its original CSV filename, row number,
+import ID, import time, and PRISM session. Select **All**, **Has errors**, or
+**Passed** to filter by actual validation status. Search by invoice, vendor,
+filename, or finding; filter by source import; sort by newest, errors first,
+passed first, vendor, or invoice number. Selecting a row displays its imported
+fields, actual findings, and draft download when available. Export filtered
+findings includes only the currently visible invoices. Counts summarize all saved
+imports; the list shows the filtered count separately.
+
+`POST /api/import` accepts `{"csv": "...", "filename": "invoices.csv"}`. Each CSV
+is stored atomically in `data/billify.sqlite3` (ignored by Git). Set `BILLIFY_DB_PATH`
+to change the database path. Imports survive refreshes and server restarts.
+Multiple files are processed sequentially; an invalid file shows an error without
+rolling back other successful files. Identical filenames are distinguished by
+import IDs and timestamps. The dashboard never silently substitutes sample data
+when the database is empty or an API request fails.
+
+Passed invoices from earlier imports are included in duplicate checks and their
+drafts reserve PO amounts for later imports against the **same reference snapshot**.
+Changing reference JSON starts a new validation scope (identified by a SHA-256
+fingerprint); old results remain visible as historical decisions. Before changing
+the snapshot, reconcile approved/recorded invoices into `existing_bills` and update
+PO balances. There is no accounting synchronization or draft release workflow yet.
+Reimporting the same CSV creates a new import; previously passed invoices are then
+flagged as duplicates rather than creating another draft. Review items do not
+reserve a balance and may be corrected and reimported.
+
+Imports made before this persistence feature cannot be recovered from memory;
+reimport those CSVs to populate the dashboard. No real payments are made, and
+passing invoices remain drafts. The server binds to localhost and has no
+production authentication.
 
 ### PRISM traces
 
@@ -76,6 +105,7 @@ configure remote alerts, or automatically spend root-cause analysis credits.
 
 ```bash
 python -m unittest discover -s tests -v
+node --test tests/test_dashboard.cjs
 ```
 
 Tests cover financial controls, batch duplicates and balances, mixed valid/invalid
