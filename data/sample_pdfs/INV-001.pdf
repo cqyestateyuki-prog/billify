@@ -1,0 +1,60 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 1156 >>
+stream
+BT /F2 22 Tf 56 720 Td (Acme Supplies) Tj ET
+BT /F1 10 Tf 56 702 Td (Accounts receivable) Tj ET
+BT /F2 28 Tf 400 716 Td (INVOICE) Tj ET
+BT /F2 10 Tf 56 650 Td (Bill to) Tj ET
+BT /F1 10 Tf 56 636 Td (Our Company Inc. - Accounts Payable) Tj ET
+BT /F1 10 Tf 56 622 Td (ap@ourcompany.com) Tj ET
+BT /F2 10 Tf 380 650 Td (Invoice no.) Tj ET
+BT /F1 10 Tf 470 650 Td (INV-001) Tj ET
+BT /F2 10 Tf 380 636 Td (Invoice date) Tj ET
+BT /F1 10 Tf 470 636 Td (2026-10-01) Tj ET
+BT /F2 10 Tf 380 622 Td (Due date) Tj ET
+BT /F1 10 Tf 470 622 Td (2026-10-31) Tj ET
+BT /F2 10 Tf 380 608 Td (PO number) Tj ET
+BT /F1 10 Tf 470 608 Td (PO-100) Tj ET
+BT /F2 10 Tf 56 540 Td (Description) Tj ET
+BT /F2 10 Tf 470 540 Td (Amount \(USD\)) Tj ET
+BT /F1 10 Tf 56 520 Td (Office supplies, October order) Tj ET
+BT /F1 10 Tf 470 520 Td (100.00) Tj ET
+BT /F1 11 Tf 380 480 Td (Subtotal) Tj ET
+BT /F1 11 Tf 470 480 Td (100.00) Tj ET
+BT /F1 11 Tf 380 462 Td (Tax) Tj ET
+BT /F1 11 Tf 470 462 Td (8.00) Tj ET
+BT /F2 11 Tf 380 444 Td (Total due) Tj ET
+BT /F2 11 Tf 470 444 Td (108.00 USD) Tj ET
+BT /F1 9 Tf 56 120 Td (Please quote INV-001 with your payment. Thank you for your business.) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000348 00000 n 
+0000000450 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+1657
+%%EOF

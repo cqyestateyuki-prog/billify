@@ -37,15 +37,16 @@ class InvoiceResult:
 
 class WorkflowTrace:
     """Emit actual validation tool spans to an optional PRISM callback handler."""
-    def __init__(self, handler: Any = None) -> None:
+    def __init__(self, handler: Any = None, name: str = 'validate_invoice') -> None:
         """Retain a shared callback handler for all invoices in an import."""
         self.handler = handler
+        self.name = name
         self.run_id = uuid4()
 
     def __enter__(self) -> WorkflowTrace:
         """Open one root run so all seven tool steps share a trajectory."""
         if self.handler:
-            self.handler.on_chain_start({'name': 'validate_invoice'}, {}, run_id=self.run_id)
+            self.handler.on_chain_start({'name': self.name}, {}, run_id=self.run_id)
         return self
 
     def __exit__(self, kind: type[BaseException] | None, error: BaseException | None,
@@ -126,8 +127,12 @@ def validate_reference(reference: dict[str, Any]) -> None:
             raise ValueError(f'Duplicate identities in {key}.')
 
 
-def process_csv(content: str, reference: dict[str, Any], handler: Any = None) -> list[dict[str, Any]]:
-    """Validate a batch against trusted references; reserve PO balances within the batch."""
+def process_csv(content: str, reference: dict[str, Any], handler: Any = None,
+                session_ids: list[str] | None = None) -> list[dict[str, Any]]:
+    """Validate a batch against trusted references; reserve PO balances within the batch.
+
+    Pass session_ids (one per row) to continue PRISM sessions opened earlier, e.g. by PDF reading.
+    """
     from contextlib import nullcontext
     validate_reference(reference)
     rows = read_csv(content)
@@ -136,9 +141,11 @@ def process_csv(content: str, reference: dict[str, Any], handler: Any = None) ->
     balances = {p['number']: money(str(p['remaining_amount'])) for p in orders.values()}
     counts = Counter((r['vendor_id'], r['invoice_number'].casefold()) for r in rows)
     existing = {(b['vendor_id'], b['invoice_number'].strip().casefold()) for b in reference['existing_bills']}
+    if session_ids is not None and len(session_ids) != len(rows):
+        raise ValueError('Provide one session ID per invoice row.')
     results = []
-    for row in rows:
-        result = InvoiceResult(int(row['_row']), row['invoice_number'], str(uuid4()))
+    for index, row in enumerate(rows):
+        result = InvoiceResult(int(row['_row']), row['invoice_number'], session_ids[index] if session_ids else str(uuid4()))
         trace = WorkflowTrace(handler)
         if handler:
             from prismtrace import session
