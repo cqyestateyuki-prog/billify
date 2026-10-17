@@ -46,6 +46,61 @@ Routine invoices move through automatically. Suspicious invoices are stopped bef
 | No PO number | **Review** | Spend approval cannot be verified. |
 | Ambiguous number/date formatting | **Review or normalize with evidence** | The agent must resolve the format before creating a financial record. |
 
+## Track 2: Money Operations
+
+AI that improves how money moves and how finance teams operate. The track covers payments, expenses, reconciliation, invoices, CFO workflows, and automation.
+
+Billify fits this track by automating a core accounts-payable workflow: transforming incoming vendor invoices into structured bookkeeping records while checking whether each invoice is safe to process automatically.
+
+The agent handles invoice extraction, vendor verification, PO matching, duplicate detection, amount and currency normalization, overbilling checks, and escalation of risky invoices for human review.
+
+### Required PRISM proofs
+
+#### 1. Sessions
+
+Open one run on the PRISM **Steps** tab and show every tool call the agent makes. The workflow is intentionally designed to produce a trace with more than six meaningful steps.
+
+A representative run can include:
+
+1. Read invoice email.
+2. Extract invoice fields.
+3. Normalize amount, currency, and dates.
+4. Resolve vendor identity.
+5. Query approved vendors.
+6. Query the referenced purchase order.
+7. Search existing bills for duplicates.
+8. Compare the invoice total against the PO balance.
+9. Decide whether to auto-log or flag the invoice.
+10. Write the resulting record or review item.
+
+#### 2. Alert
+
+Configure a PRISM alert on a metric that matters to the AP workflow and demonstrate it firing on a real run.
+
+Useful candidates include error rate, latency, vendor-match failure rate, duplicate-detection failures, or unusually high human-review rate. A failed tool call that leaves the run without an answer can be used to demonstrate an error-rate alert.
+
+#### 3. Root Cause
+
+Analyze 5–10 failing runs in PRISM, identify a cluster of at least three failures with the same root cause, then run the same inputs against a corrected v2 and show that they no longer fail.
+
+Good failure clusters for this project include:
+
+- vendor normalization failures such as `Acme Corp` versus `ACME Corporation`,
+- ambiguous date parsing such as `03/04/26`,
+- locale-sensitive amount parsing such as `1.250,00`,
+- duplicate invoices that evade the first matching strategy,
+- and missing or malformed PO references.
+
+### Demo: failure, fix, and alert
+
+The PRISM portion of the demo should tell one clean story:
+
+1. **The failure** — show a real invoice run producing an incorrect result or failed tool call.
+2. **The alert** — show the monitoring rule that would have surfaced the problem.
+3. **The root cause** — show PRISM clustering several related failures and identifying the underlying issue.
+4. **The fix** — change the workflow or normalization logic.
+5. **The proof** — replay the same inputs and show that v2 succeeds.
+
 ## Why this fits Money Operations
 
 Invoice and accounts-payable automation is a direct Money Operations workflow: the agent is making structured decisions about money movement, bookkeeping, approval state, and financial risk.
@@ -59,6 +114,14 @@ The important part is not only whether the final decision is correct. Every invo
 - and whether a subsequent fix actually corrected that failure mode.
 
 That makes the AP workflow useful as both a finance automation demo and an agent-observability test case.
+
+## Sponsors
+
+| Sponsor | Logo | Website |
+| --- | --- | --- |
+| **Block** | <img src="https://www.google.com/s2/favicons?sz=128&domain_url=https://block.xyz" alt="Block logo" width="64" /> | [block.xyz](https://block.xyz) |
+| **Convey** | <img src="https://www.google.com/s2/favicons?sz=128&domain_url=https://convey.com" alt="Convey logo" width="64" /> | [convey.com](https://convey.com) |
+| **Nicrron.ai** | <img src="https://www.google.com/s2/favicons?sz=128&domain_url=https://nicrron.ai" alt="Nicrron.ai logo" width="64" /> | [nicrron.ai](https://nicrron.ai) |
 
 ## Agent workflow
 
