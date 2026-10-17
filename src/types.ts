@@ -13,7 +13,8 @@ export type ISODate = string;
 
 /** Monetary amount paired with its currency. */
 export interface Money {
-  amount: number;
+  /** Decimal string on the Python API; numbers remain supported for existing UI data. */
+  amount: number | string;
   currency: CurrencyCode;
 }
 
@@ -92,4 +93,31 @@ export interface ReimbursementForm {
   supportingDocumentName?: string;
   sourceEmailId?: string;
   createdAt: string;
+}
+
+/** One field-level finding from the CSV validation API. */
+export interface InvoiceValidationIssue {
+  code: string;
+  field: string;
+  message: string;
+}
+
+/** Per-record response from POST /api/import. */
+export interface InvoiceValidationResult {
+  row_number: number;
+  invoice_number: string;
+  session_id: string;
+  status: "passed" | "needs_review";
+  issues: InvoiceValidationIssue[];
+  normalized: Record<string, string>;
+  reimbursement: ReimbursementForm | null;
+}
+
+/** Batch response, including downloadable reports. */
+export interface InvoiceImportResponse {
+  results: InvoiceValidationResult[];
+  csv: string;
+  drafts: ReimbursementForm[];
+  tracing_enabled: boolean;
+  reference_mode: "configured" | "demo";
 }
