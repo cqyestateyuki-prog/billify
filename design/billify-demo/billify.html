@@ -1,0 +1,766 @@
+<!doctype html><html lang="en" data-theme="light"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Billify</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: search-engine style front door (centered pill, three source buttons), then a quiet three-step workspace: Stage, Read, Transfer */
+:root{
+  --bg:#ffffff; --panel:#ffffff; --fg:#1d2630; --muted:#5f6b78; --line:#dde2e8; --line-2:#eef1f4; --code:#f5f7f9;
+  --bf:#0a7f66; --bf-h:#086a56; --bf-fg:#ffffff; --bf-soft:#e0f3ee;
+  --ac:#0b5cad; --ac-h:#094a8c; --ac-fg:#ffffff; --ac-soft:#e4eefa; --top:#0b2545;
+  --ok:#17692f; --ok-soft:#e1f4e7; --bad:#b3261e; --bad-soft:#fdeceb; --bad-fg:#ffffff; --warn:#8a5a00; --warn-soft:#fff3d6;
+  --shadow:0 1px 6px #20212447; --overlay:rgba(15,25,35,.5);
+  --sans:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1519; --panel:#161e25; --fg:#e6ecf1; --muted:#93a1ae; --line:#2b3743; --line-2:#202a33; --code:#101920;
+  --bf:#3fcaa5; --bf-h:#66dabb; --bf-fg:#04211a; --bf-soft:#13352d;
+  --ac:#5aa9f0; --ac-h:#7dbcf5; --ac-fg:#06192e; --ac-soft:#192b40; --top:#07101c;
+  --ok:#6fd08c; --ok-soft:#173a25; --bad:#ff8a80; --bad-soft:#40201e; --bad-fg:#2a0d0b; --warn:#f2c46d; --warn-soft:#3a2d12;
+  --shadow:0 1px 6px #0009; --overlay:rgba(0,0,0,.65); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --panel:#161e25; --fg:#e6ecf1; --muted:#93a1ae; --line:#2b3743; --line-2:#202a33; --code:#101920;
+  --bf:#3fcaa5; --bf-h:#66dabb; --bf-fg:#04211a; --bf-soft:#13352d;
+  --ac:#5aa9f0; --ac-h:#7dbcf5; --ac-fg:#06192e; --ac-soft:#192b40; --top:#07101c;
+  --ok:#6fd08c; --ok-soft:#173a25; --bad:#ff8a80; --bad-soft:#40201e; --bad-fg:#2a0d0b; --warn:#f2c46d; --warn-soft:#3a2d12;
+  --shadow:0 1px 6px #0009; --overlay:rgba(0,0,0,.65); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.45;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 28px}
+button{font:inherit;cursor:pointer;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--bf);outline-offset:2px}
+code{font-family:var(--mono);font-size:12px}
+.wrap{max-width:1100px;margin:0 auto}
+
+/* header */
+.hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px;min-height:56px}
+.hd a,.hd button.lnk{color:var(--muted);text-decoration:none;font-size:13px;background:none;border:0;padding:6px 8px;border-radius:4px}
+.hd a:hover,.hd button.lnk:hover{color:var(--fg);background:var(--line-2)}
+.mini{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;letter-spacing:-.01em;background:none;border:0;padding:0;color:var(--fg)}
+.mk{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:var(--bf);color:var(--bf-fg);font-weight:700;font-size:15px}
+
+/* home */
+.home{min-height:calc(100vh - 150px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center;padding-bottom:50px}
+.word{font-size:clamp(44px,9vw,76px);font-weight:700;letter-spacing:-.04em;margin:0;display:flex;align-items:center;gap:12px}
+.word .mk{width:clamp(38px,7vw,58px);height:clamp(38px,7vw,58px);border-radius:14px;font-size:clamp(24px,4.6vw,38px)}
+.tag{color:var(--muted);margin:-8px 0 0;font-size:15px}
+.pill{width:min(640px,100%);display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:28px;background:var(--panel);padding:6px 8px 6px 18px;min-height:52px;transition:box-shadow .15s,border-color .15s}
+.pill:hover,.pill:focus-within,.pill.drag{box-shadow:var(--shadow);border-color:transparent}
+.pill.drag{outline:2px dashed var(--bf);outline-offset:3px}
+.pill input{flex:1;min-width:0;border:0;background:none;color:var(--fg);font:inherit;font-size:16px;padding:8px 0}
+.pill input:focus-visible{outline:none}
+.pill input::placeholder{color:var(--muted)}
+.ib{border:0;background:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.ib:hover{background:var(--line-2);color:var(--fg)}
+.ib svg,.sb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.srcs{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.sb{display:inline-flex;align-items:center;gap:8px;background:var(--code);border:1px solid var(--code);border-radius:6px;padding:10px 16px;color:var(--fg)}
+.sb:hover{border-color:var(--line);box-shadow:0 1px 2px #0002}
+.sb svg{color:var(--bf)}
+.try{background:none;border:0;color:var(--bf);text-decoration:underline;padding:4px;font-size:13px}
+.fine{color:var(--muted);font-size:12.5px;max-width:560px;margin:0}
+
+/* workspace */
+.steps{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;font-weight:600;margin:6px 0 16px}
+.steps span{padding:5px 12px;border-radius:14px;border:1px solid var(--line);color:var(--muted)}
+.steps span.on{background:var(--bf);border-color:var(--bf);color:var(--bf-fg)}
+.steps span.done{color:var(--fg);border-color:var(--bf)}
+.steps i{font-style:normal;color:var(--muted)}
+h1{font-size:22px;margin:0 0 4px;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+.list{display:flex;flex-direction:column}
+.item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--line-2);min-width:0}
+.item:last-child{border-bottom:0}
+.ficon{width:34px;height:34px;border-radius:6px;background:var(--code);display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:500;color:var(--muted);flex:none}
+.item .nm{min-width:0;flex:1}
+.item .nm b{display:block;font-weight:600;overflow-wrap:anywhere}
+.item .nm span{font-size:12.5px;color:var(--muted)}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:11px;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)} .chip.bf{background:var(--bf-soft);color:var(--bf)}
+.chip.ac{background:var(--ac-soft);color:var(--ac)} .chip.idle{background:var(--code);color:var(--muted)}
+.x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:4px 8px;border-radius:4px}
+.x:hover{background:var(--line-2);color:var(--fg)}
+.confirm{margin-top:16px;padding:16px;display:flex;flex-direction:column;gap:12px;border-color:var(--bf);background:var(--bf-soft)}
+.confirm h2{margin:0;font-size:16px}
+.confirm p{margin:0;color:var(--fg)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:9px 16px;border-radius:5px;font-weight:500}
+.btn:hover{border-color:var(--bf)}
+.btn.pri{background:var(--bf);border-color:var(--bf);color:var(--bf-fg);font-weight:600}
+.btn.pri:hover{background:var(--bf-h)}
+.btn.ac{background:var(--ac);border-color:var(--ac);color:var(--ac-fg);font-weight:600}
+.btn.ac:hover{background:var(--ac-h)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--bf);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+
+/* review */
+.rcard{margin-bottom:12px;overflow:hidden}
+.rh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--code)}
+.rh label{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.rh .grow{margin-left:auto}
+.rb{padding:14px}
+.fg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 12px}
+@media(max-width:860px){.fg{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.fg{grid-template-columns:minmax(0,1fr)}}
+.fg .w2{grid-column:span 2}
+@media(max-width:480px){.fg .w2{grid-column:auto}}
+.fg label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:3px}
+.fg input,.fg select,.rb textarea,.pform input,.pform select{width:100%;font:inherit;font-size:13.5px;color:var(--fg);background:var(--panel);border:1px solid #8c99a8;border-radius:4px;padding:7px 9px;min-width:0}
+.fg input.chg{background:var(--bf-soft);border-color:var(--bf)}
+.fg input.bad,.fg select.bad,.pform input.err,.pform select.err{border-color:var(--bad);background:var(--bad-soft)}
+.fg .cf{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:2px}
+.fg .cf.low{color:var(--warn);font-weight:600}
+.notes{margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+.notes b{color:var(--bf);font-weight:600}
+.issues{margin:10px 0 0;padding:8px 12px;border-radius:4px;font-size:12.5px;background:var(--bad-soft);color:var(--bad)}
+.issues ul{margin:4px 0 0;padding-left:18px}
+.okline{margin:10px 0 0;font-size:12.5px;color:var(--ok);font-weight:600}
+.rb textarea{font-family:var(--mono);font-size:12px;min-height:120px;white-space:pre}
+.foot{position:sticky;bottom:0;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--bg);border-top:1px solid var(--line);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:8px}
+
+/* transfer + portal */
+.tgrid{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:16px;align-items:start}
+@media(max-width:900px){.tgrid{grid-template-columns:minmax(0,1fr)}}
+.pbar{background:var(--top);color:#fff;display:flex;align-items:center;gap:10px;padding:9px 16px;flex-wrap:wrap;border-radius:8px 8px 0 0}
+.pbar .lg{width:24px;height:24px;border-radius:5px;background:#fff;color:#0b2545;display:grid;place-items:center;font-weight:700}
+.pbar small{color:#9fb3cc}
+.sim{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;background:#ffd54a;color:#3a2a00;padding:3px 7px;border-radius:3px}
+.rep{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)}
+.rep h3{margin:0;font-size:15px}
+.rep .s{color:var(--muted);font-size:12.5px}
+.pform{padding:14px 16px;border-bottom:1px solid var(--line);background:var(--code)}
+.pform .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ac);font-weight:700;margin:0 0 8px}
+.pform label{display:block;font-size:12px;font-weight:600;margin-bottom:3px}
+.pform label i{color:var(--bad);font-style:normal}
+.pform .g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+.pform .g .full{grid-column:1/-1}
+@media(max-width:480px){.pform .g{grid-template-columns:minmax(0,1fr)}}
+.pform input.fill,.pform select.fill{border-color:var(--ac);box-shadow:0 0 0 2px var(--ac-soft)}
+.ferr{font-size:11.5px;color:var(--bad);margin-top:3px}
+.pmsg{font-size:12px;color:var(--muted);margin-top:10px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:8px 14px;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--code);white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td small{display:block;color:var(--muted);font-family:var(--mono);font-size:11px}
+.empty{padding:20px 14px;text-align:center;color:var(--muted)}
+.sum{padding:14px 16px;border-radius:8px;margin-bottom:14px;border:1px solid var(--line)}
+.sum.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.sum.bad{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.sum b{font-weight:700}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:var(--overlay);z-index:20}
+.modal{position:fixed;z-index:21;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100% - 32px));max-height:calc(100% - 40px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 40px #0005}
+.modal header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.modal h2{margin:0;font-size:16px}
+.modal .mb{overflow-y:auto;padding:0}
+.modal .bn{margin:0;padding:10px 16px;font-size:12.5px;color:var(--warn);background:var(--warn-soft)}
+.modal .pth{padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--muted);border-bottom:1px solid var(--line-2)}
+.modal footer{display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.modal .item{cursor:pointer}
+.modal .item.off{opacity:.5;cursor:default}
+.modal input[type=checkbox],.rh input[type=checkbox]{width:17px;height:17px;accent-color:var(--bf);flex:none}
+.settings{position:absolute;right:0;top:44px;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:12px 14px;width:min(300px,calc(100vw - 32px));text-align:left}
+.settings label{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.settings p{margin:6px 0 0;font-size:12px;color:var(--muted)}
+
+/* PRISM surfaces: version chip, agent-steps drawer, alert, root cause, replay */
+.hd .ver{font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 8px;border-radius:11px;background:var(--bf-soft);color:var(--bf)}
+.hd .ver.v1{background:var(--warn-soft);color:var(--warn)}
+.lnk-ext{display:inline-flex;align-items:center;gap:5px;color:var(--bf);font-weight:600;font-size:13px;background:none;border:0;padding:0}
+.lnk-ext:hover{text-decoration:underline}
+.lnk-ext svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn.sm{padding:5px 10px;font-size:12.5px}
+.tl-hint{font-size:12px;color:var(--muted);padding:8px 14px;border-top:1px solid var(--line-2)}
+.item[data-steps]{cursor:pointer}
+.item[data-steps]:hover{background:var(--line-2)}
+.drawer{position:fixed;z-index:21;top:0;right:0;bottom:0;width:min(440px,100%);display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);box-shadow:-12px 0 40px #0006}
+.drawer header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:16px 18px 14px;border-bottom:1px solid var(--line)}
+.drawer h2{margin:0;font-size:16px;overflow-wrap:anywhere}
+.drawer .meta{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:4px}
+.drawer .db{flex:1;overflow-y:auto;padding:16px 18px}
+.drawer footer{padding:12px 18px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.tsteps{list-style:none;margin:0;padding:0}
+.tsteps li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:0 0 14px}
+.tsteps li:not(:last-child)::before{content:"";position:absolute;left:10px;top:24px;bottom:2px;width:2px;background:var(--line-2)}
+.tsteps .dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:10.5px;font-weight:600;background:var(--ok-soft);color:var(--ok)}
+.tsteps li.skip .dot,.tsteps li.wait .dot{background:var(--code);color:var(--muted);border:1px dashed var(--line)}
+.tsteps li.warn .dot{background:var(--warn-soft);color:var(--warn)}
+.tsteps li.err .dot{background:var(--bad);color:var(--bad-fg)}
+.tsteps code{font-size:12.5px;color:var(--fg);font-weight:500}
+.tsteps li.skip code,.tsteps li.wait code{color:var(--muted)}
+.tsteps .out{font-size:12.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.tsteps li.err .out{color:var(--bad)}
+.alert{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:8px;margin-bottom:14px;background:var(--bad-soft);border:1px solid var(--bad)}
+.alert .ic{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--bad);color:var(--bad-fg);font-weight:700}
+.alert h3{margin:0 0 3px;font-size:14.5px;color:var(--bad)}
+.alert p{margin:0 0 8px;color:var(--fg);font-size:13px}
+.alert .rule{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.rc{margin-bottom:14px;overflow:hidden}
+.rc .rch{padding:12px 16px;border-bottom:1px solid var(--line)}
+.rc .rch h3{margin:0;font-size:15px}
+.rc .rch p{margin:3px 0 0;color:var(--muted);font-size:12.5px}
+.rc td:first-child{font-weight:600}
+.rc .bar{display:inline-block;height:8px;border-radius:4px;background:var(--bad);vertical-align:middle;margin-right:8px}
+.rc .fix{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;background:var(--bf-soft);border-top:1px solid var(--line)}
+.rc .fix p{margin:0;font-size:13px;max-width:62ch}
+.cmpl{display:flex;gap:6px 16px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:var(--fg)}
+#ptbl td:first-child{white-space:nowrap}
+@media(max-width:600px){
+  .rc table,.rc tbody,.rc tr,.rc td{display:block}
+  .rc thead{display:none}
+  .rc tr{padding:10px 16px;border-bottom:1px solid var(--line-2)}
+  .rc td{padding:2px 0;border:0}
+  .rc td.num{text-align:left}
+}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:30;background:var(--fg);color:var(--bg);padding:9px 14px;border-radius:6px;font-size:13px;box-shadow:var(--shadow)}
+</style>
+
+<div class="wrap">
+  <div class="hd" style="position:relative">
+    <button class="mini" id="h-home" aria-label="Billify home" hidden><span class="mk">B</span>Billify</button>
+    <span id="h-sp"></span>
+    <div class="row" style="gap:6px">
+      <a href="#portal" id="h-portal" hidden>Expense portal</a>
+      <span class="ver" id="h-ver" title="Agent version (demo control)">agent v2</span>
+      <button class="lnk" id="h-set" aria-expanded="false">Demo settings</button>
+    </div>
+    <div class="settings" id="settings" hidden>
+      <label><input type="checkbox" id="s-raw"> <span><b>Send values exactly as written (v1)</b></span></label>
+      <p>Skips date, amount, currency and category cleanup, so the portal rejects invoices. Use it to show the failure, then switch back to fix it.</p>
+      <p><b style="color:var(--fg)">Traced in PRISM</b> as Billify AP Agent. Alert rule: failed runs above 20% of the last 10.</p>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <main id="v-home" class="home">
+    <h1 class="word" style="margin:0"><span class="mk">B</span>Billify</h1>
+    <p class="tag">Read vendor invoices. Fill the expense report.</p>
+    <div class="pill" id="pill">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="color:var(--muted);flex:none"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="q" type="text" placeholder="Drop invoices here, or paste invoice text and press Enter" aria-label="Add invoices" autocomplete="off">
+      <button class="ib" id="b-up2" aria-label="Upload invoices" title="Upload invoices"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg></button>
+    </div>
+    <div class="srcs">
+      <button class="sb" id="b-up"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Upload invoices</button>
+      <button class="sb" id="b-folder"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Online folder</button>
+      <button class="sb" id="b-mail"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>Email inbox</button>
+    </div>
+    <button class="try" id="b-try">Try it with sample invoices</button>
+    <p class="fine">Demo with made-up invoices and a simulated expense portal. Nothing leaves this page.</p>
+    <input type="file" id="file" multiple accept=".pdf,.png,.jpg,.jpeg,.txt,.eml,.csv,.html,.htm,.md" hidden>
+  </main>
+
+  <!-- WORKSPACE -->
+  <main id="v-work" hidden>
+    <div class="steps" id="steps"></div>
+
+    <section id="v-staged" hidden>
+      <h1 id="st-h">Invoices ready</h1>
+      <p class="sub">Check the list. Nothing is read or sent until you confirm.</p>
+      <div class="card list" id="st-list"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="b-add-up">Upload more</button>
+        <button class="btn" id="b-add-folder">Online folder</button>
+        <button class="btn" id="b-add-mail">Email inbox</button>
+      </div>
+      <div class="card confirm">
+        <h2>Use Billify to read these invoices automatically?</h2>
+        <p>Billify reads the vendor, invoice number, date, amount, currency and category from each one. You review every value before anything goes to the expense portal.</p>
+        <div class="row"><button class="btn pri" id="b-read">Yes, read with Billify</button><button class="btn" id="b-clear">Clear all</button></div>
+      </div>
+    </section>
+
+    <section id="v-review" hidden>
+      <h1 id="rv-h">Review</h1>
+      <p class="sub" id="rv-sub"></p>
+      <div id="rv-list"></div>
+      <div class="foot"><span id="rv-count" class="sub" style="margin:0"></span><div class="row"><button class="btn" id="b-back">Back</button><button class="btn ac" id="b-transfer">Transfer to Acme Expense</button></div></div>
+    </section>
+
+    <section id="v-transfer" hidden>
+      <h1>Transfer to Acme Expense</h1>
+      <p class="sub" id="tr-sub">Billify fills the portal form field by field, then saves each expense. Click an invoice to see its agent steps.</p>
+      <div id="tr-sum"></div>
+      <div class="tgrid">
+        <div class="card list" id="tr-list"></div>
+        <div class="card" id="portal" style="overflow:hidden">
+          <div class="pbar"><span class="lg">A</span><b>Acme Expense</b><small>Finance Operations</small><span class="sim">Simulated system</span></div>
+          <div class="rep"><div><h3>October Vendor Invoices</h3><div class="s">Report R-2026-1017 &middot; Jordan Rivera &middot; <span class="chip warn">Draft</span></div></div>
+            <div class="s">Total <b id="ptotal" style="color:var(--fg)">0.00</b> &middot; <span id="pcount">0</span> items</div></div>
+          <form class="pform" id="pf" novalidate autocomplete="off">
+            <p class="lbl">New expense</p>
+            <div class="g">
+              <div class="full"><label for="p_vendor">Vendor<i>*</i></label><input id="p_vendor"><div class="ferr" data-for="vendor"></div></div>
+              <div><label for="p_invoice_number">Invoice number<i>*</i></label><input id="p_invoice_number"><div class="ferr" data-for="invoice_number"></div></div>
+              <div><label for="p_invoice_date">Invoice date<i>*</i></label><input id="p_invoice_date" placeholder="YYYY-MM-DD"><div class="ferr" data-for="invoice_date"></div></div>
+              <div><label for="p_amount">Total amount<i>*</i></label><input id="p_amount"><div class="ferr" data-for="amount"></div></div>
+              <div><label for="p_currency">Currency<i>*</i></label><input id="p_currency" placeholder="USD"><div class="ferr" data-for="currency"></div></div>
+              <div><label for="p_category">Expense category<i>*</i></label><select id="p_category"></select><div class="ferr" data-for="category"></div></div>
+              <div><label for="p_cost_center">Cost center<i>*</i></label><input id="p_cost_center" placeholder="CC-210"><div class="ferr" data-for="cost_center"></div></div>
+              <div class="full"><label for="p_description">Business purpose</label><input id="p_description"><div class="ferr" data-for="description"></div></div>
+            </div>
+            <div class="pmsg" id="pmsg">Waiting for Billify.</div>
+          </form>
+          <div class="tbl" id="ptbl"></div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:16px" id="tr-actions" hidden>
+        <button class="btn" id="b-fix" hidden>Fix rejected invoices</button>
+        <button class="btn pri" id="b-new">Start over</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" hidden>
+  <header><h2 id="m-title"></h2><button class="x" id="m-x" aria-label="Close">&times;</button></header>
+  <div class="mb"><p class="bn" id="m-bn"></p><div class="pth" id="m-path"></div><div id="m-list"></div></div>
+  <footer><span class="sub" id="m-count" style="margin:0 auto 0 0"></span><button class="btn" id="m-cancel">Cancel</button><button class="btn pri" id="m-add">Add to Billify</button></footer>
+</div>
+<div class="scrim" id="d-scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title" hidden>
+  <header><div><h2 id="d-title"></h2><div class="meta" id="d-meta"></div></div><button class="x" id="d-x" aria-label="Close">&times;</button></header>
+  <div class="db"><ol class="tsteps" id="d-steps"></ol></div>
+  <footer><span class="sub" id="d-foot" style="margin:0"></span><button class="lnk-ext" data-prism="session">Open session in PRISM <svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></svg></button></footer>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+var CATEGORIES=["Software","Travel","Meals","Office Supplies","Equipment","Professional Services","Utilities"];
+var CURRENCIES=["USD","EUR","GBP","CAD"];
+var FIELDS=["vendor","invoice_number","invoice_date","amount","currency","category","cost_center","description"];
+var LABELS={vendor:"Vendor",invoice_number:"Invoice number",invoice_date:"Invoice date",amount:"Amount",currency:"Currency",category:"Category",cost_center:"Cost center",description:"Description"};
+var SAMPLE={
+ nw:"Northwind Cloud Hosting\nINVOICE\nInvoice No: NW-48213\nDate: 2026-10-03\nDescription: Annual hosting renewal, 3 seats\nSubtotal: 1240.50\nTotal Due: USD 1240.50\nCost Center: CC-210",
+ ls:"Lakeside Office Supply\nINVOICE\nInvoice # LOS-90177\nDate: 10/03/2026\nDescription: Printer paper and toner cartridges\nTotal Due: $86.20\nCost Center: CC-114",
+ hr:"Harbor Ridge Consulting\nINVOICE\nInvoice No: HRC-2026-044\nDate: September 28, 2026\nDescription: Quarterly finance systems review (consulting)\nTotal Due: $4,800.00\nCost Center: CC-305",
+ mt:"Meridian Travel Services\nINVOICE\nInvoice No: MT-70311\nDate: 1 Oct 2026\nDescription: Airfare NYC to Chicago, 2 travelers\nTotal Due: US$ 2,310.75\nCost Center: CC-122",
+ pp:"Pixel Print Co\nINVOICE\nInvoice # PP-1180\nDate: 10/16/2026\nDescription: 500 tri-fold brochures (printing supplies)\nTotal Due: $640.00\nCost Center: CC-114",
+ le:"Lumen Electric\nINVOICE\nInvoice No: LE-10422\nDate: Oct 5, 2026\nDescription: Electric service through Sep 30\nTotal Due: $612.40\nCost Center: CC-101",
+ kt:"Kraftwerk Teile GmbH\nINVOICE\nInvoice No: KT-5531\nDate: 15.10.2026\nDescription: Replacement equipment parts\nTotal Due: EUR 1.250,00\nCost Center: CC-305"
+};
+var FOLDER=[
+ {name:"northwind_NW-48213.pdf",size:"142 KB",text:SAMPLE.nw},{name:"lakeside_LOS-90177.pdf",size:"96 KB",text:SAMPLE.ls},
+ {name:"harborridge_HRC-2026-044.pdf",size:"188 KB",text:SAMPLE.hr},{name:"meridian_MT-70311.pdf",size:"121 KB",text:SAMPLE.mt},
+ {name:"pixelprint_PP-1180.pdf",size:"84 KB",text:SAMPLE.pp},{name:"lumen_LE-10422.pdf",size:"77 KB",text:SAMPLE.le},
+ {name:"kraftwerk_KT-5531.pdf",size:"133 KB",text:SAMPLE.kt},
+ {name:"Q3_budget_notes.xlsx",size:"58 KB",off:"Not an invoice"}
+];
+var MAIL=[
+ {name:"northwind_NW-48213.pdf",size:"Billing, Northwind Cloud",sub:"Invoice NW-48213 for October",text:SAMPLE.nw},
+ {name:"lakeside_LOS-90177.pdf",size:"Accounts, Lakeside Office",sub:"Your invoice LOS-90177",text:SAMPLE.ls},
+ {name:"harborridge_HRC-2026-044.pdf",size:"Billing, Harbor Ridge",sub:"Invoice HRC-2026-044 attached",text:SAMPLE.hr},
+ {name:"meridian_MT-70311.pdf",size:"Receipts, Meridian Travel",sub:"Travel invoice MT-70311",text:SAMPLE.mt},
+ {name:"pixelprint_PP-1180.pdf",size:"Hello, Pixel Print",sub:"Your Pixel Print invoice PP-1180",text:SAMPLE.pp},
+ {name:"lumen_LE-10422.pdf",size:"Billing, Lumen Electric",sub:"Your October electric bill",text:SAMPLE.le},
+ {name:"kraftwerk_KT-5531.pdf",size:"Rechnung, Kraftwerk Teile",sub:"Rechnung KT-5531 / Invoice KT-5531",text:SAMPLE.kt},
+ {name:"No attachment",size:"Team Events",sub:"Friday lunch order",off:"No invoice found"},
+ {name:"newsletter.html",size:"Payments Weekly",sub:"October product update",off:"No invoice found"}
+];
+var RULES=[[/hosting|seat|licen[sc]e|saas|subscription/i,"Software","Software",.96],[/paper|toner|stationery|supplies/i,"Office Supplies","Office Supplies",.97],[/consult|advisory|review/i,"Consulting","Professional Services",.91],[/airfare|flight|hotel|travel/i,"Airfare","Travel",.95],[/electric|power|utility|internet|phone/i,"Utilities","Utilities",.95],[/equipment|parts|hardware/i,"Machine parts","Equipment",.9]];
+var MONTHS=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+var CUR_MAP={"$":"USD","US$":"USD","USD":"USD","€":"EUR","EUR":"EUR","£":"GBP","GBP":"GBP","C$":"CAD","CAD":"CAD"};
+var st={items:[],seq:0,uid:0,store:[],busy:false,view:"home",raw:false,modalKind:null};
+var $=function(id){return document.getElementById(id)};
+var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+function pad(n){return (n<10?"0":"")+n}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function money(n){return n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function todayStr(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+
+/* ---- mock portal (same rules as the Acme portal page) ---- */
+function validate(p){
+  var e=[];function add(f,c,m){e.push({field:f,code:c,message:m})}function s(v){return v==null?"":String(v).trim()}
+  var v=s(p.vendor);if(!v)add("vendor","REQUIRED","Vendor is required.");else if(v.length<2||v.length>80)add("vendor","INVALID_FORMAT","Vendor must be 2 to 80 characters.");
+  var i=s(p.invoice_number);if(!i)add("invoice_number","REQUIRED","Invoice number is required.");else if(!/^[A-Z0-9-]{4,24}$/.test(i))add("invoice_number","INVALID_FORMAT","Use 4 to 24 characters: A-Z, 0-9, hyphen (received \""+i+"\").");
+  var d=s(p.invoice_date);
+  if(!d)add("invoice_date","REQUIRED","Invoice date is required.");
+  else{var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d),ok=false;if(m){var y=+m[1],mo=+m[2],da=+m[3],t=new Date(Date.UTC(y,mo-1,da));ok=t.getUTCFullYear()===y&&t.getUTCMonth()===mo-1&&t.getUTCDate()===da}
+    if(!ok)add("invoice_date","INVALID_DATE_FORMAT","Use YYYY-MM-DD (received \""+d+"\").");else if(d>todayStr())add("invoice_date","DATE_IN_FUTURE","Invoice date cannot be after today.")}
+  var a=s(p.amount);if(!a)add("amount","REQUIRED","Amount is required.");else if(!/^\d+(\.\d{1,2})?$/.test(a)||parseFloat(a)<=0)add("amount","INVALID_AMOUNT","Plain number above 0, max 2 decimals, no symbols or commas (received \""+a+"\").");
+  var c=s(p.currency);if(!c)add("currency","REQUIRED","Currency is required.");else if(CURRENCIES.indexOf(c)<0)add("currency","UNSUPPORTED_CURRENCY","Use one of "+CURRENCIES.join(", ")+" (received \""+c+"\").");
+  var k=s(p.category);if(!k)add("category","REQUIRED","Category is required.");else if(CATEGORIES.indexOf(k)<0)add("category","INVALID_CATEGORY","\""+k+"\" is not an allowed category.");
+  var cc=s(p.cost_center);if(!cc)add("cost_center","REQUIRED","Cost center is required.");else if(!/^CC-\d{3}$/.test(cc))add("cost_center","INVALID_FORMAT","Use CC-### (received \""+cc+"\").");
+  if(s(p.description).length>200)add("description","INVALID_FORMAT","Description is limited to 200 characters.");
+  return e;
+}
+function post(p){
+  var errs=validate(p);if(errs.length)return {status:422,body:{error:"VALIDATION_FAILED",errors:errs}};
+  var v=String(p.vendor).trim().toLowerCase(),n=String(p.invoice_number).trim();
+  if(st.store.some(function(x){return x.claim.vendor.toLowerCase()===v&&x.claim.invoice_number===n}))return {status:409,body:{error:"DUPLICATE_INVOICE",message:"This vendor and invoice number are already on the report."}};
+  st.seq++;var rec={id:"EXP-2026-"+("00000"+st.seq).slice(-5),status:"pending_approval",claim:{vendor:String(p.vendor).trim(),invoice_number:n,invoice_date:String(p.invoice_date).trim(),amount:parseFloat(p.amount),currency:String(p.currency).trim(),category:String(p.category).trim(),cost_center:String(p.cost_center).trim(),description:String(p.description||"").trim()}};
+  st.store.push(rec);return {status:201,body:rec};
+}
+
+/* ---- Billify reader ---- */
+function parseDate(s){
+  var m;s=(s||"").trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  if((m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s)))return m[3]+"-"+pad(+m[1])+"-"+pad(+m[2]);
+  if((m=/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s)))return m[3]+"-"+pad(+m[2])+"-"+pad(+m[1]);
+  if((m=/^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})$/.exec(s))){var i=MONTHS.indexOf(m[1].slice(0,3).toLowerCase());if(i>=0)return m[3]+"-"+pad(i+1)+"-"+pad(+m[2])}
+  if((m=/^(\d{1,2})\s+([A-Za-z]{3,9})\.?,?\s+(\d{4})$/.exec(s))){var j=MONTHS.indexOf(m[2].slice(0,3).toLowerCase());if(j>=0)return m[3]+"-"+pad(j+1)+"-"+pad(+m[1])}
+  return null;
+}
+function extract(text){
+  var lines=text.split(/\r?\n/).map(function(l){return l.trim()}).filter(Boolean);
+  var vendor=(lines.filter(function(l){return !/^invoice$/i.test(l)&&!/^(from|to|subject|date|message-id):/i.test(l)})[0])||"";
+  function g(re){var m=re.exec(text);return m?m[1].trim():""}
+  var num=g(/Invoice\s*(?:No\.?|#|Number)\s*[:#]?\s*([A-Za-z0-9-]+)/i);
+  var date=g(/^\s*(?:Invoice\s+)?Date\s*:\s*(.+)$/im)||g(/(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|[A-Z][a-z]{2,8}\.? \d{1,2}, \d{4})/);
+  var tot=g(/^\s*(?:Total(?:\s+Due)?|Amount\s+Due|Grand\s+Total)\s*:?\s*(.+)$/im);
+  var cur="",amt=tot,cm=/^(USD|EUR|GBP|CAD|US\$|C\$|\$|€|£)\s*(.*)$/.exec(tot);
+  if(cm){cur=cm[1];amt=cm[2]}else{var c2=/^(.*?)\s*(USD|EUR|GBP|CAD)$/.exec(tot);if(c2){amt=c2[1];cur=c2[2]}}
+  var cc=g(/Cost\s*Center\s*:\s*([A-Za-z0-9-]+)/i);
+  var desc=g(/^\s*Description\s*:\s*(.+)$/im);
+  var cat={label:"",canon:"",conf:0};
+  for(var i=0;i<RULES.length;i++){if(RULES[i][0].test(desc||text)){cat={label:RULES[i][1],canon:RULES[i][2],conf:RULES[i][3]};break}}
+  return {vendor:vendor,invoice_number:num,invoice_date:date,amount:amt,currency:cur,cost_center:cc,description:desc,cat:cat};
+}
+function normAmount(s){var t=String(s||"").replace(/[^0-9.,]/g,"");return /,\d{2}$/.test(t)?t.replace(/\./g,"").replace(",","."):t.replace(/,/g,"")}
+function build(raw,rawMode){
+  var p={},conf={},notes=[];
+  function put(f,read,sent,c){p[f]=sent;conf[f]=c;if(read&&read!==sent)notes.push(LABELS[f]+": "+read+"  →  "+sent)}
+  put("vendor",raw.vendor,raw.vendor,raw.vendor?.99:0);
+  put("invoice_number",raw.invoice_number,raw.invoice_number,raw.invoice_number?.99:0);
+  put("invoice_date",raw.invoice_date,rawMode?raw.invoice_date:(parseDate(raw.invoice_date)||raw.invoice_date),raw.invoice_date?(parseDate(raw.invoice_date)?.97:.5):0);
+  put("amount",raw.amount,rawMode?raw.amount:normAmount(raw.amount),raw.amount?.98:0);
+  put("currency",raw.currency,rawMode?raw.currency:(CUR_MAP[raw.currency]||raw.currency),raw.currency?(CUR_MAP[raw.currency]?.98:.5):0);
+  put("category",raw.cat.label,rawMode?raw.cat.label:(raw.cat.canon||raw.cat.label),raw.cat.conf);
+  put("cost_center",raw.cost_center,raw.cost_center,raw.cost_center?.99:0);
+  put("description",raw.description,raw.description,raw.description?.9:0);
+  return {payload:p,conf:conf,notes:notes};
+}
+
+/* ---- items ---- */
+function kindOf(name){var m=/\.([a-z0-9]+)$/i.exec(name);return m?m[1].toUpperCase():"TXT"}
+function addItem(o){st.uid++;st.items.push({id:st.uid,name:o.name,meta:o.meta||"",source:o.source,text:o.text==null?null:o.text,status:"queued",send:true,payload:null,conf:{},notes:[],msg:"",raw:null,ver:null,result:null})}
+function addFiles(files){
+  var arr=Array.prototype.slice.call(files);var readable=/\.(txt|eml|csv|html?|md)$/i;
+  var jobs=arr.map(function(f){return new Promise(function(res){
+    var meta=(f.size>1024?Math.round(f.size/1024)+" KB":f.size+" B");
+    if(readable.test(f.name)){var r=new FileReader();r.onload=function(){addItem({name:f.name,meta:meta,source:"Upload",text:String(r.result)});res()};r.onerror=function(){addItem({name:f.name,meta:meta,source:"Upload",text:null});res()};r.readAsText(f)}
+    else{addItem({name:f.name,meta:meta,source:"Upload",text:null});res()}
+  })});
+  Promise.all(jobs).then(function(){go("staged")});
+}
+
+/* ---- navigation ---- */
+function steps(n){
+  var names=["Add invoices","Review","Transfer"];
+  $("steps").innerHTML=names.map(function(x,i){return '<span class="'+(i+1===n?"on":i+1<n?"done":"")+'">'+(i+1)+" "+x+"</span>"}).join("<i>&rarr;</i>");
+}
+function go(v){
+  st.view=v;
+  $("v-home").hidden=v!=="home";$("v-work").hidden=v==="home";
+  ["staged","review","transfer"].forEach(function(k){$("v-"+k).hidden=(k!==v)});
+  $("h-home").hidden=v==="home";$("h-sp").hidden=v!=="home";$("h-portal").hidden=true;
+  if(v==="staged"){steps(1);renderStaged()}
+  if(v==="review"){steps(2);renderReview()}
+  if(v==="transfer"){steps(3)}
+  window.scrollTo(0,0);
+}
+function renderStaged(){
+  var n=st.items.length;
+  $("st-h").textContent=n+(n===1?" invoice ready":" invoices ready");
+  if(!n){$("st-list").innerHTML='<div class="empty">Nothing added yet.</div>';return}
+  $("st-list").innerHTML=st.items.map(function(it){
+    return '<div class="item"><div class="ficon">'+esc(kindOf(it.name))+'</div><div class="nm"><b>'+esc(it.name)+'</b><span>'+esc(it.meta)+'</span></div><span class="chip idle">'+esc(it.source)+'</span><button class="x" data-rm="'+it.id+'" aria-label="Remove '+esc(it.name)+'">&times;</button></div>';
+  }).join("");
+  document.querySelectorAll("[data-rm]").forEach(function(b){b.addEventListener("click",function(){
+    var id=+b.getAttribute("data-rm");st.items=st.items.filter(function(i){return i.id!==id});
+    if(!st.items.length)go("home");else renderStaged();
+  })});
+}
+
+/* ---- read ---- */
+function readItem(it){
+  var raw=extract(it.text);var b=build(raw,st.raw);
+  it.payload=b.payload;it.conf=b.conf;it.notes=b.notes;it.status="read";it.raw=raw;it.ver=st.raw?"v1":"v2";it.result=null;
+}
+async function readAll(){
+  if(st.busy)return;st.busy=true;
+  $("b-read").innerHTML='<span class="spin"></span>Reading...';$("b-read").disabled=true;
+  for(var i=0;i<st.items.length;i++){
+    var it=st.items[i];
+    if(it.status==="created")continue;
+    await sleep(420);
+    if(it.text==null){it.status="needs_text";it.payload=null}else readItem(it);
+  }
+  st.busy=false;$("b-read").textContent="Yes, read with Billify";$("b-read").disabled=false;
+  go("review");
+}
+
+/* ---- review ---- */
+function issuesOf(it){return it.payload?validate(it.payload):[]}
+function fieldHtml(it,f){
+  var v=it.payload[f],c=it.conf[f],errs=issuesOf(it).filter(function(e){return e.field===f});
+  var cls=(errs.length?"bad":"")+(it.changed&&it.changed[f]?" chg":"");
+  var conf='<div class="cf'+(c&&c<.9?" low":"")+'">'+(c?"confidence "+c.toFixed(2):(v?"edited":"not found"))+'</div>';
+  if(f==="category"){
+    var opts='<option value="">Select</option>'+CATEGORIES.map(function(x){return '<option'+(x===v?" selected":"")+'>'+x+'</option>'}).join("");
+    if(v&&CATEGORIES.indexOf(v)<0)opts+='<option selected value="'+esc(v)+'">'+esc(v)+' (not in list)</option>';
+    return '<div><label for="r'+it.id+f+'">'+LABELS[f]+'</label><select id="r'+it.id+f+'" data-it="'+it.id+'" data-f="'+f+'" class="'+cls+'">'+opts+'</select>'+conf+'</div>';
+  }
+  var wide=(f==="vendor"||f==="description")?" w2":"";
+  return '<div class="'+wide.trim()+'"><label for="r'+it.id+f+'">'+LABELS[f]+'</label><input id="r'+it.id+f+'" data-it="'+it.id+'" data-f="'+f+'" class="'+cls+'" value="'+esc(v)+'">'+conf+'</div>';
+}
+function issuesBox(it){
+  var e=issuesOf(it);
+  if(!e.length)return '<div class="okline">Ready for the portal.</div>';
+  return '<div class="issues"><b>The portal would reject '+e.length+(e.length===1?" field":" fields")+':</b><ul>'+e.map(function(x){return "<li>"+LABELS[x.field]+": "+esc(x.message)+"</li>"}).join("")+"</ul></div>";
+}
+function renderReview(){
+  var read=st.items.filter(function(i){return i.status==="read"||i.status==="rejected"}).length;
+  $("rv-h").textContent="Review what Billify read";
+  $("rv-sub").textContent="Edit anything that looks wrong. Highlighted fields were cleaned up to match the portal.";
+  $("rv-list").innerHTML=st.items.map(function(it){
+    if(it.status==="created")return '<div class="card rcard"><div class="rh"><b>'+esc(it.name)+'</b><span class="chip ok grow">Already in the portal</span></div></div>';
+    if(it.status==="needs_text")return '<div class="card rcard"><div class="rh"><b>'+esc(it.name)+'</b><span class="chip warn grow">Needs text</span></div><div class="rb"><p class="sub" style="margin:0 0 8px">This file type cannot be read inside the page. Paste the invoice text below. The production build sends the file to the model instead.</p><textarea data-paste="'+it.id+'" placeholder="Vendor name&#10;INVOICE&#10;Invoice No: ...&#10;Date: ...&#10;Total Due: ..." aria-label="Invoice text for '+esc(it.name)+'"></textarea><div class="row" style="margin-top:8px"><button class="btn pri" data-readtxt="'+it.id+'">Read this text</button></div></div></div>';
+    it.changed={};
+    it.notes.forEach(function(n){var f=Object.keys(LABELS).filter(function(k){return n.indexOf(LABELS[k]+":")===0})[0];if(f)it.changed[f]=true});
+    return '<div class="card rcard" id="card'+it.id+'"><div class="rh"><label><input type="checkbox" data-send="'+it.id+'"'+(it.send?" checked":"")+'> '+esc(it.name)+'</label><span class="chip idle">'+esc(it.source)+'</span>'+(it.status==="rejected"?'<span class="chip bad">Rejected earlier</span>':'')+'<button class="btn sm grow" data-steps="'+it.id+'">Agent steps</button></div><div class="rb"><div class="fg">'+FIELDS.map(function(f){return fieldHtml(it,f)}).join("")+'</div>'+(it.notes.length?'<p class="notes"><b>Billify cleaned up:</b> '+it.notes.map(esc).join(" &middot; ")+'</p>':'')+'<div id="iss'+it.id+'">'+issuesBox(it)+'</div></div></div>';
+  }).join("");
+  wireReview();updateCount();
+}
+function wireReview(){
+  document.querySelectorAll("[data-f]").forEach(function(el){
+    el.addEventListener("input",function(){
+      var it=byId(+el.getAttribute("data-it")),f=el.getAttribute("data-f");
+      it.payload[f]=el.value;it.conf[f]=0;if(it.changed)delete it.changed[f];
+      el.classList.remove("chg");
+      var errs=validate(it.payload).filter(function(e){return e.field===f});el.classList.toggle("bad",errs.length>0);
+      $("iss"+it.id).innerHTML=issuesBox(it);updateCount();
+    });
+  });
+  document.querySelectorAll("[data-send]").forEach(function(el){el.addEventListener("change",function(){byId(+el.getAttribute("data-send")).send=el.checked;updateCount()})});
+  document.querySelectorAll("[data-readtxt]").forEach(function(b){b.addEventListener("click",function(){
+    var it=byId(+b.getAttribute("data-readtxt"));var t=document.querySelector('[data-paste="'+it.id+'"]').value;
+    if(!t.trim())return;it.text=t;readItem(it);renderReview();
+  })});
+}
+function byId(id){return st.items.filter(function(i){return i.id===id})[0]}
+function sendable(){return st.items.filter(function(i){return i.payload&&i.send&&i.status!=="created"})}
+function updateCount(){
+  var s=sendable(),bad=s.filter(function(i){return issuesOf(i).length}).length;
+  $("rv-count").textContent=s.length+" to send"+(bad?" · "+bad+" will be rejected as they are":"");
+  $("b-transfer").disabled=!s.length;
+  $("b-transfer").textContent="Transfer "+s.length+(s.length===1?" invoice":" invoices")+" to Acme Expense";
+}
+
+/* ---- transfer ---- */
+function buildCategories(extra){
+  var s=$("p_category");s.innerHTML="";
+  var o=document.createElement("option");o.value="";o.textContent="Select a category";s.appendChild(o);
+  CATEGORIES.forEach(function(c){var e=document.createElement("option");e.value=c;e.textContent=c;s.appendChild(e)});
+  if(extra&&CATEGORIES.indexOf(extra)<0){var x=document.createElement("option");x.value=extra;x.textContent=extra+" (not in list)";s.appendChild(x)}
+}
+function clearPortal(){
+  buildCategories();
+  FIELDS.forEach(function(f){var e=$("p_"+f);e.value="";e.classList.remove("fill","err")});
+  document.querySelectorAll(".ferr").forEach(function(e){e.textContent=""});
+}
+async function typeInto(f,val){
+  var e=$("p_"+f);e.classList.add("fill");
+  if(f==="category"){buildCategories(val);e.value=val;await sleep(80);return}
+  e.focus({preventScroll:true});e.value="";var s=String(val||"");
+  for(var i=0;i<s.length;i++){e.value+=s[i];await sleep(s.length>24?5:10)}
+}
+function renderPortal(){
+  var tot={};st.store.forEach(function(r){tot[r.claim.currency]=(tot[r.claim.currency]||0)+r.claim.amount});
+  var k=Object.keys(tot);$("ptotal").textContent=k.length?k.map(function(c){return money(tot[c])+" "+c}).join(" + "):"0.00";
+  $("pcount").textContent=st.store.length;
+  if(!st.store.length){$("ptbl").innerHTML='<div class="empty">No expenses on this report yet.</div>';return}
+  var h='<table><thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>';
+  st.store.forEach(function(r){var c=r.claim;h+='<tr><td>'+c.invoice_date+'</td><td>'+esc(c.vendor)+'<small>'+esc(c.invoice_number)+' &middot; '+c.cost_center+'</small></td><td>'+esc(c.category)+'</td><td class="num">'+money(c.amount)+' '+c.currency+'</td><td><span class="chip ac">Pending approval</span><small>'+r.id+'</small></td></tr>'});
+  $("ptbl").innerHTML=h+"</tbody></table>";
+}
+function renderTL(list){
+  $("tr-list").innerHTML=list.map(function(it){
+    var chip=it.t==="wait"?'<span class="chip idle">Waiting</span>':it.t==="run"?'<span class="chip bf"><span class="spin" style="width:10px;height:10px;margin-right:4px"></span>Filling</span>':it.t==="ok"?'<span class="chip ok">Created</span>':'<span class="chip bad">Rejected</span>';
+    return '<div class="item" data-steps="'+it.id+'" title="Agent steps"><div class="nm"><b>'+esc(it.name)+'</b><span>'+esc(it.msg||it.vendor)+'</span></div>'+chip+'</div>';
+  }).join("")+'<div class="tl-hint">Click an invoice to see its agent steps.</div>';
+}
+async function transfer(){
+  var list=sendable();if(!list.length||st.busy)return;st.busy=true;
+  go("transfer");$("tr-sum").innerHTML="";$("tr-actions").hidden=true;
+  var tl=list.map(function(it){it.result=null;return {id:it.id,name:it.name,vendor:it.payload.vendor||"",t:"wait",msg:""}});
+  renderTL(tl);clearPortal();renderPortal();
+  var created=0,rej=0;
+  for(var i=0;i<list.length;i++){
+    var it=list[i];tl[i].t="run";tl[i].msg="Filling the portal form";renderTL(tl);
+    $("pmsg").textContent="Billify is filling the form for "+(it.payload.vendor||it.name)+"...";
+    clearPortal();
+    for(var j=0;j<FIELDS.length;j++)await typeInto(FIELDS[j],it.payload[FIELDS[j]]);
+    await sleep(350);
+    var r=post(it.payload);it.result=r;
+    FIELDS.forEach(function(f){$("p_"+f).classList.remove("fill")});
+    if(r.status===201){created++;it.status="created";tl[i].t="ok";tl[i].msg=r.body.id+" · pending approval";$("pmsg").textContent="Saved as "+r.body.id+".";renderPortal()}
+    else{
+      rej++;it.status="rejected";tl[i].t="bad";
+      if(r.status===422){
+        r.body.errors.forEach(function(e){var el=document.querySelector('.ferr[data-for="'+e.field+'"]');if(el&&!el.textContent)el.textContent=e.message;$("p_"+e.field).classList.add("err")});
+        tl[i].msg=r.body.errors.map(function(e){return e.code}).join(", ");$("pmsg").textContent="Rejected: "+r.body.errors.length+" field(s) failed portal validation."
+      }else{tl[i].msg="Duplicate invoice";$("pmsg").textContent="Duplicate invoice."}
+    }
+    renderTL(tl);await sleep(rej&&it.status==="rejected"?1400:600);
+  }
+  var ok=rej===0,ver=list[0].ver,n=list.length;
+  var html='<div class="sum '+(ok?"ok":"bad")+'"><b>'+created+' created'+(rej?", "+rej+" rejected":"")+'.</b> '+(ok?"Every expense is on the report, pending approval with M. Okafor.":"Fix the highlighted fields in Review and send the rejected ones again.")+(ok&&st.prevRun?'<div class="cmpl"><span>Same '+st.prevRun.n+' invoices</span><span>agent v1: '+st.prevRun.rej+' rejected</span><span>&rarr;</span><span><b>agent v2: '+rej+' rejected</b></span></div>':'')+'</div>';
+  if(rej)html+=alertHtml(rej,n)+rootCauseHtml(list,rej,n,ver);
+  $("tr-sum").innerHTML=html;
+  st.prevRun=(rej&&ver==="v1")?{n:n,rej:rej}:(ok?st.prevRun:null);
+  var rb=$("b-replay");if(rb)rb.addEventListener("click",replay);
+  $("tr-actions").hidden=false;$("b-fix").hidden=!rej;
+  st.busy=false;
+}
+
+/* ---- PRISM surfaces ---- */
+var EXT='<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></svg>';
+var CAUSE={INVALID_DATE_FORMAT:"Date isn\u2019t YYYY-MM-DD",UNSUPPORTED_CURRENCY:"Currency is a symbol, not a code",INVALID_AMOUNT:"Amount has commas or a decimal comma",INVALID_CATEGORY:"Category isn\u2019t in the portal\u2019s list",REQUIRED:"A required field is missing",INVALID_FORMAT:"A field has the wrong format",DATE_IN_FUTURE:"Date is in the future",DUPLICATE_INVOICE:"Already on the report"};
+function trace(it){
+  var s=[],p=it.payload,r=it.raw,v1=it.ver==="v1";
+  function add(n,cls,out){s.push({n:n,cls:cls,out:out})}
+  add("read_document","",it.name+" \u00b7 "+it.source);
+  if(!p){add("extract_fields","warn","This file type can\u2019t be read in the page");return s}
+  add("extract_fields","",FIELDS.filter(function(f){return p[f]}).length+" of 8 fields found");
+  [["normalize_date","invoice_date"],["normalize_amount","amount"],["normalize_currency","currency"],["map_category","category"]].forEach(function(x){
+    var a=r?(x[1]==="category"?r.cat.label:r[x[1]]):"",b=p[x[1]];
+    if(v1)add(x[0],"skip","Skipped in v1 \u00b7 sent as written"+(a?": "+a:""));
+    else if(!a)add(x[0],"warn","Nothing to clean up: not found");
+    else add(x[0],"",a===b?"Already in portal format: "+b:a+"  \u2192  "+b);
+  });
+  var iss=issuesOf(it);
+  add("validate_fields",iss.length?"warn":"",iss.length?iss.length+(iss.length===1?" field":" fields")+" would be rejected":"Matches the portal rules");
+  var res=it.result;
+  if(!res){add("fill_portal_form","wait","Not sent yet");add("submit_expense","wait","Not sent yet");return s}
+  add("fill_portal_form","","8 fields typed into Acme Expense");
+  if(res.status===201)add("submit_expense","","201 \u00b7 "+res.body.id+" \u00b7 pending approval");
+  else if(res.status===422)add("submit_expense","err","422 \u00b7 "+res.body.errors.map(function(e){return e.code}).join(", "));
+  else add("submit_expense","err","409 \u00b7 DUPLICATE_INVOICE");
+  return s;
+}
+function openDrawer(id){
+  var it=byId(id);if(!it)return;
+  var steps=trace(it),res=it.result;
+  $("d-title").textContent=(it.payload&&it.payload.vendor)||it.name;
+  $("d-meta").textContent="run_"+pad(it.id)+"_"+(it.ver||"new")+" \u00b7 agent "+(it.ver||"\u2013")+" \u00b7 "+steps.length+" tool calls";
+  $("d-steps").innerHTML=steps.map(function(x,i){return '<li class="'+x.cls+'"><span class="dot">'+(x.cls==="err"?"!":x.cls==="skip"?"\u2013":i+1)+'</span><div><code>'+x.n+'</code><div class="out">'+esc(x.out)+'</div></div></li>'}).join("");
+  $("d-foot").textContent=!res?"Not sent to the portal yet":res.status===201?"Run succeeded":"Run failed at submit_expense";
+  $("d-scrim").hidden=false;$("drawer").hidden=false;$("d-x").focus();
+}
+function closeDrawer(){$("d-scrim").hidden=true;$("drawer").hidden=true}
+function causes(list){
+  var m={};
+  list.forEach(function(it){var r=it.result;if(!r||r.status===201)return;
+    var codes=r.status===422?r.body.errors.map(function(e){return e.code}):["DUPLICATE_INVOICE"];
+    codes.filter(function(c,i){return codes.indexOf(c)===i}).forEach(function(c){(m[c]=m[c]||[]).push(it)})});
+  return Object.keys(m).map(function(c){return {code:c,items:m[c]}}).sort(function(a,b){return b.items.length-a.items.length});
+}
+function alertHtml(rej,n){
+  return '<div class="alert" role="alert"><span class="ic">!</span><div><h3>PRISM alert fired \u00b7 portal rejections</h3><p>'+rej+' of '+n+' runs failed at <code>submit_expense</code> ('+Math.round(rej/n*100)+'%), above the 20% threshold.</p><div class="row" style="gap:16px"><span class="rule">Rule: failed runs &gt; 20% of the last 10 \u00b7 Billify AP Agent</span><button class="lnk-ext" data-prism="alert">Open alert in PRISM '+EXT+'</button></div></div></div>';
+}
+function rootCauseHtml(list,rej,n,ver){
+  var cs=causes(list);
+  return '<div class="card rc"><div class="rch"><h3>Why they failed</h3><p>'+rej+' failed runs grouped by the error the portal returned. One run can fail for more than one reason.</p></div><div class="tbl"><table><thead><tr><th>Cause</th><th class="num">Runs</th><th>Invoices</th></tr></thead><tbody>'+
+    cs.map(function(c){return '<tr><td>'+esc(CAUSE[c.code]||c.code)+'<small>'+c.code+'</small></td><td class="num"><span class="bar" style="width:'+(c.items.length*12)+'px"></span>'+c.items.length+'</td><td>'+c.items.map(function(it){return esc(it.payload.vendor||it.name)}).join(", ")+'</td></tr>'}).join("")+'</tbody></table></div>'+
+    (ver==="v1"?'<div class="fix"><p><b>Root cause:</b> agent v1 sends values exactly as written. Nothing normalizes dates, amounts, currencies or categories before <code>submit_expense</code>. Agent v2 adds those four steps.</p><button class="btn pri" id="b-replay">Replay the same '+n+' invoices with v2</button></div>':'')+'</div>';
+}
+function replay(){
+  if(st.busy)return;
+  st.raw=false;$("s-raw").checked=false;setVer();
+  st.store=[];st.seq=0;
+  st.items.forEach(function(it){if(it.text!=null){it.status="queued";it.send=true;readItem(it)}});
+  transfer();
+}
+function setVer(){var v=st.raw?"v1":"v2";$("h-ver").textContent="agent "+v;$("h-ver").className="ver"+(st.raw?" v1":"")}
+var toastT=0;
+function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){t.hidden=true},2400)}
+document.addEventListener("click",function(e){
+  var s=e.target.closest("[data-steps]");if(s){openDrawer(+s.getAttribute("data-steps"));return}
+  var pr=e.target.closest("[data-prism]");if(pr)toast("Opens this "+pr.getAttribute("data-prism")+" in PRISM once the agent posts real runs.");
+});
+$("d-x").addEventListener("click",closeDrawer);$("d-scrim").addEventListener("click",closeDrawer);
+
+/* ---- sources modal ---- */
+function openModal(kind){
+  st.modalKind=kind;var src=kind==="folder"?FOLDER:MAIL;
+  $("m-title").textContent=kind==="folder"?"Online folder":"Email inbox";
+  $("m-bn").textContent=kind==="folder"?"Demo folder with made-up files. A live build connects through your Drive sign-in.":"Demo inbox with made-up messages. A live build connects through your Gmail or Outlook sign-in.";
+  $("m-path").textContent=kind==="folder"?"Shared drive / Finance / Invoices / October":"ap-invoices@acme-demo.example · Inbox · 6 messages";
+  $("m-list").innerHTML=src.map(function(x,i){
+    return '<label class="item'+(x.off?" off":"")+'"><input type="checkbox" data-m="'+i+'"'+(x.off?" disabled":" checked")+'><div class="ficon">'+esc(kindOf(x.name==="No attachment"?"MSG.eml":x.name))+'</div><div class="nm"><b>'+esc(kind==="mail"?x.sub:x.name)+'</b><span>'+esc(kind==="mail"?x.size+" · "+x.name:x.size)+'</span></div>'+(x.off?'<span class="chip idle">'+x.off+'</span>':'')+'</label>';
+  }).join("");
+  $("scrim").hidden=false;$("modal").hidden=false;
+  document.querySelectorAll("[data-m]").forEach(function(c){c.addEventListener("change",modalCount)});modalCount();
+  $("m-add").focus();
+}
+function modalCount(){var n=document.querySelectorAll("[data-m]:checked").length;$("m-count").textContent=n+" selected";$("m-add").disabled=!n}
+function closeModal(){$("scrim").hidden=true;$("modal").hidden=true}
+
+/* ---- events ---- */
+function pickFiles(){$("file").click()}
+["b-up","b-up2","b-add-up"].forEach(function(id){$(id).addEventListener("click",pickFiles)});
+$("file").addEventListener("change",function(){if(this.files.length)addFiles(this.files);this.value=""});
+["b-folder","b-add-folder"].forEach(function(id){$(id).addEventListener("click",function(){openModal("folder")})});
+["b-mail","b-add-mail"].forEach(function(id){$(id).addEventListener("click",function(){openModal("mail")})});
+$("m-x").addEventListener("click",closeModal);$("m-cancel").addEventListener("click",closeModal);$("scrim").addEventListener("click",closeModal);
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){if(!$("modal").hidden)closeModal();closeDrawer();$("settings").hidden=true}});
+$("m-add").addEventListener("click",function(){
+  var src=st.modalKind==="folder"?FOLDER:MAIL;
+  document.querySelectorAll("[data-m]:checked").forEach(function(c){
+    var x=src[+c.getAttribute("data-m")];
+    if(st.items.some(function(i){return i.name===x.name&&i.source===(st.modalKind==="folder"?"Folder":"Email")}))return;
+    addItem({name:x.name,meta:st.modalKind==="mail"?x.sub:x.size,source:st.modalKind==="folder"?"Folder":"Email",text:x.text});
+  });
+  closeModal();go("staged");
+});
+$("b-try").addEventListener("click",function(){
+  FOLDER.filter(function(x){return !x.off}).forEach(function(x){
+    if(!st.items.some(function(i){return i.name===x.name}))addItem({name:x.name,meta:x.size,source:"Folder",text:x.text});
+  });
+  go("staged");
+});
+$("q").addEventListener("keydown",function(e){
+  if(e.key==="Enter"&&this.value.trim()){addItem({name:"Pasted invoice text",meta:this.value.trim().length+" characters",source:"Pasted",text:this.value.replace(/\\n/g,"\n")});this.value="";go("staged")}
+});
+$("q").addEventListener("paste",function(e){
+  var t=(e.clipboardData||window.clipboardData).getData("text");
+  if(t&&t.indexOf("\n")>=0){e.preventDefault();addItem({name:"Pasted invoice text",meta:t.length+" characters",source:"Pasted",text:t});go("staged")}
+});
+["dragenter","dragover"].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();$("pill").classList.add("drag")})});
+["dragleave","drop"].forEach(function(ev){document.addEventListener(ev,function(e){e.preventDefault();$("pill").classList.remove("drag")})});
+document.addEventListener("drop",function(e){if(e.dataTransfer&&e.dataTransfer.files.length)addFiles(e.dataTransfer.files)});
+$("b-read").addEventListener("click",readAll);
+$("b-clear").addEventListener("click",function(){st.items=[];go("home")});
+$("b-back").addEventListener("click",function(){go("staged")});
+$("b-transfer").addEventListener("click",transfer);
+$("b-fix").addEventListener("click",function(){
+  st.items.forEach(function(it){it.send=(it.status==="rejected")});go("review");
+});
+$("b-new").addEventListener("click",function(){st.items=[];go("home")});
+$("h-home").addEventListener("click",function(){if(!st.busy)go(st.items.length?"staged":"home")});
+$("h-set").addEventListener("click",function(){var s=$("settings");s.hidden=!s.hidden;this.setAttribute("aria-expanded",String(!s.hidden))});
+$("s-raw").addEventListener("change",function(){
+  st.raw=this.checked;setVer();
+  st.items.forEach(function(it){if(it.text!=null&&it.status!=="created"&&it.payload)readItem(it)});
+  if(st.view==="review")renderReview();
+});
+
+buildCategories();renderPortal();setVer();go("home");
+window.Billify={extract:extract,build:build,validate:validate,post:post,sample:SAMPLE};
+})();
+</script>
+
+</body></html>
