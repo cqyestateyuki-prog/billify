@@ -2,12 +2,34 @@
 
 An accounts-payable agent that turns invoice emails into bookkeeping records while escalating only the invoices that actually need a human.
 
-**Demo:** [interactive prototype](https://claude.ai/artifact/MRkEdrP7EeaLh26vZBnX12) (Add invoices → Review → Transfer to a simulated expense portal; v1 vs v2 in Demo settings) · [pitch video](https://claude.ai/artifact/8YqPzEdShwr58v3BQrEV21) · run the real product locally with `python -m src.server` (CSV and PDF invoices, see below).
+**Demo:** [interactive prototype](https://claude.ai/artifact/MRkEdrP7EeaLh26vZBnX12) (Add invoices → Review → Transfer to a simulated expense portal; v1 vs v2 in Demo settings) · [pitch video](https://claude.ai/artifact/8YqPzEdShwr58v3BQrEV21) · run the real product locally: see **Run it**.
 
+## Run it
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt   # needed for PDF reading by Claude, PRISM traces and src/agent.py
+python -m src.server              # standard library only; PORT changes the port
+```
+
+- **http://127.0.0.1:8000**: the expense workflow (Add invoices → Review → Transfer to Acme Expense).
+- **http://127.0.0.1:8000/dashboard**: CSV and PDF invoice review (**Import CSVs or PDFs**);
+  **http://127.0.0.1:8000/import** has the import guide and the sample CSV.
+- Optional, exported in the shell before starting the server (no `.env` file is loaded):
+  `ANTHROPIC_API_KEY` to read invoice PDFs with Claude, `PRISMTRACE_API_KEY`,
+  `PRISMTRACE_PROJECT_ID` and `PRISMTRACE_HOST` to send traces to PRISM (see **PRISM traces**),
+  and `BILLIFY_DB_PATH` to move the SQLite file (default `data/billify.sqlite3`).
+- **Browser extension** (`extension/`): open `chrome://extensions`, turn on **Developer mode**,
+  choose **Load unpacked** and select the `extension/` folder. In the popup, pick a demo invoice,
+  open a **New expense** form and click **Prefill form**; it fills the form's fields by their labels.
+  It uses five built-in demo invoices (`USE_MOCK_DATA` in `extension/popup.js`) and does not call
+  the server yet.
+- Tests: `python -m unittest discover -s tests -v` and `node --test tests/test_dashboard.cjs`
+  (see **Verification**).
 
 ## Expense workflow: Add invoices → Review → Transfer
 
-From the repository root, run `python -m src.server` and open **http://127.0.0.1:8000**.
+With the server running (see **Run it**), open **http://127.0.0.1:8000**.
 
 1. **Add invoices**: upload files, pick from the **Online folder** or **Email inbox** (both are the
    made-up samples in `data/sample_invoices/`), paste invoice text, or choose **Try it with sample
@@ -91,13 +113,7 @@ transfer response and are not shown in the page.
 
 ## CSV invoice review (working feature)
 
-From the repository root, run:
-
-```bash
-python -m src.server
-```
-
-Open **http://127.0.0.1:8000/dashboard** for the live invoice dashboard. Use **Import CSVs**
+With the server running (see **Run it**), open **http://127.0.0.1:8000/dashboard** for the live invoice dashboard. Use **Import CSVs**
 to select one or more files. The **Import guide & sample** link opens `/import`,
 where you can download the sample CSV and validate it. The sample produces **one passed invoice and six review
 items**. Download findings as CSV, full results as JSON, or draft reimbursement
@@ -174,13 +190,7 @@ shows these notes and the values as written under **Read from PDF**. The vendor 
 comes from the approved name or alias, or else from the PO, so a look-alike name is
 still reported as `VENDOR_NAME_MISMATCH`. Requests opt into server-side fallback
 (`fallbacks: "default"`), so a safety decline is retried on Anthropic's recommended
-model.
-
-```bash
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY='your-anthropic-key'
-python -m src.server
-```
+model. Install `requirements.txt` and export `ANTHROPIC_API_KEY` before starting the server.
 
 Sample PDFs made from `data/invoices.csv` are in `data/sample_pdfs/`; regenerate
 them with `python scripts/make_sample_pdfs.py`. `POST /api/import-pdf` takes
@@ -207,8 +217,8 @@ amounts, and save decision. A PDF invoice adds a `read_invoice_pdf` run with one
 workflow; these are workflow traces, not claimed LLM calls. Findings and normalized
 invoice fields are included in trace outputs. Use fictional data for the demo.
 The SDK flushes at each invoice's root-chain completion, so delivery can add
-latency. The UI reports whether tracing is configured, not whether remote delivery
-succeeded; check the server logs and PRISM Steps to verify receipt.
+latency. The pages do not show PRISM. The import response's `tracing_enabled` reports whether tracing is
+configured, not whether remote delivery succeeded; check the server logs and PRISM Steps to verify receipt.
 
 Correctly flagging a bad invoice is a successful validation run. Execution
 exceptions are traced as failures. This feature does not fabricate failed runs,
