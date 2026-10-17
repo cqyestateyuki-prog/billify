@@ -2,6 +2,8 @@
 
 An accounts-payable agent that turns invoice emails into bookkeeping records while escalating only the invoices that actually need a human.
 
+**Demo:** [interactive prototype](https://claude.ai/artifact/MRkEdrP7EeaLh26vZBnX12) (Add invoices → Review → Transfer to a simulated expense portal; v1 vs v2 in Demo settings) · [pitch video](https://claude.ai/artifact/8YqPzEdShwr58v3BQrEV21) · run the real product locally with `python -m src.server` (CSV and PDF invoices, see below).
+
 
 ## CSV invoice review (working feature)
 
