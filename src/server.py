@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from src.invoices import process_csv, results_csv
+from src.invoices import results_csv
+from src.store import InvoiceStore
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_BODY = 2_000_000
@@ -19,6 +20,10 @@ MAX_BODY = 2_000_000
 class InvoiceHandler(BaseHTTPRequestHandler):
     """Serve the review UI and a bounded JSON import endpoint on localhost."""
     trace_handler: Any = None
+
+    def store(self) -> InvoiceStore:
+        """Resolve the operator-configured persistent invoice database."""
+        return InvoiceStore(Path(os.environ.get('BILLIFY_DB_PATH', str(ROOT / 'data/billify.sqlite3'))))
 
     def respond(self, status: int, body: bytes, content_type: str) -> None:
         """Write a complete response without caching financial data."""
@@ -33,10 +38,20 @@ class InvoiceHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         """Serve only explicitly allowed static and demo files."""
         path = urlparse(self.path).path
-        files = {'/': ('ui/import.html', 'text/html; charset=utf-8'),
+        if path == '/api/documents':
+            try:
+                documents = self.store().documents()
+                self.respond(200, json.dumps({'documents': documents}).encode(), 'application/json')
+            except Exception:
+                logging.exception('Could not load invoice history')
+                self.respond(500, b'{"error":"Could not load invoice history. See server logs."}', 'application/json')
+            return
+        files = {'/': ('ui/dashboard.html', 'text/html; charset=utf-8'),
                  '/import': ('ui/import.html', 'text/html; charset=utf-8'),
-                 '/dashboard': ('ui/index.html', 'text/html; charset=utf-8'),
-                 '/sample.csv': ('data/invoices.csv', 'text/csv; charset=utf-8')}
+                 '/dashboard': ('ui/dashboard.html', 'text/html; charset=utf-8'),
+                 '/sample.csv': ('data/invoices.csv', 'text/csv; charset=utf-8'),
+                 '/dashboard.js': ('ui/dashboard.js', 'text/javascript; charset=utf-8'),
+                 '/document-filters.js': ('ui/document-filters.js', 'text/javascript; charset=utf-8')}
         if path not in files:
             self.respond(404, b'Not found', 'text/plain')
             return
@@ -63,8 +78,12 @@ class InvoiceHandler(BaseHTTPRequestHandler):
                 raise ValueError('Provide a csv string.')
             reference_path = Path(os.environ.get('BILLIFY_REFERENCE_PATH', str(ROOT / 'data/reference.json')))
             reference = json.loads(reference_path.read_text(encoding='utf-8'))
-            results = process_csv(payload['csv'], reference, self.trace_handler)
-            body = {'results': results, 'csv': results_csv(results),
+            filename = payload.get('filename', 'uploaded.csv')
+            if not isinstance(filename, str) or not filename.strip() or len(filename) > 255:
+                raise ValueError('Filename must be a nonempty string of at most 255 characters.')
+            batch = self.store().ingest(payload['csv'], filename, reference, self.trace_handler)
+            results = batch['results']
+            body = {**batch, 'csv': results_csv(results),
                     'drafts': [r['reimbursement'] for r in results if r['reimbursement']],
                     'tracing_enabled': self.trace_handler is not None,
                     'reference_mode': 'configured' if os.environ.get('BILLIFY_REFERENCE_PATH') else 'demo'}

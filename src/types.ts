@@ -115,9 +115,25 @@ export interface InvoiceValidationResult {
 
 /** Batch response, including downloadable reports. */
 export interface InvoiceImportResponse {
+  import_id: string;
+  filename: string;
+  created_at: string;
   results: InvoiceValidationResult[];
   csv: string;
   drafts: ReimbursementForm[];
   tracing_enabled: boolean;
   reference_mode: "configured" | "demo";
+}
+
+/** Stored invoice row with its source import and timestamp. */
+export interface StoredInvoiceDocument extends InvoiceValidationResult {
+  id: string;
+  import_id: string;
+  filename: string;
+  created_at: string;
+}
+
+/** GET /api/documents response; empty databases return an empty array. */
+export interface InvoiceDocumentsResponse {
+  documents: StoredInvoiceDocument[];
 }
